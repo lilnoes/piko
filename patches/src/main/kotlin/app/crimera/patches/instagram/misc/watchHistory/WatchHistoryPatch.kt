@@ -8,6 +8,7 @@ package app.crimera.patches.instagram.misc.watchHistory
 
 import app.crimera.patches.instagram.entity.decoder.MEDIA_CLASS_NAME
 import app.crimera.patches.instagram.entity.decoder.decoderEntity
+import app.crimera.patches.instagram.entity.mediadata.AslSessionRelatedFingerprint
 import app.crimera.patches.instagram.entity.mediadata.mediaDataEntity
 import app.crimera.patches.instagram.entity.originalSoundDataIntf.originalSoundDataIntfEntity
 import app.crimera.patches.instagram.entity.trackDataIntf.trackDataIntfEntity
@@ -21,10 +22,11 @@ import app.crimera.patches.instagram.utils.enableSettings
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructions
+import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.morphe.util.getReference
 import app.morphe.util.registersUsed
-import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
@@ -33,11 +35,6 @@ import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 private const val HOOK_CLASS = "$PATCHES_DESCRIPTOR/watchHistory/WatchHistoryHook;"
 
 /** Runtime hook class injected into feed and Reels viewers. */
-
-private object AslSessionMediaFingerprint : Fingerprint(
-    returnType = "V",
-    strings = listOf("asl_session_id", "is_video", "is_carousel"),
-)
 
 private object ClipsItemStateToStringFingerprint : Fingerprint(
     name = "toString",
@@ -61,12 +58,25 @@ private object MainFeedMediaBinderGroupFingerprint : Fingerprint(
     strings = listOf("MainFeedMediaBinderGroup"),
 )
 
+private fun CharSequence.registerWidth(): Int = if (this == "J" || this == "D") 2 else 1
+
 private fun Method.mediaParamIndex(): Int = parameters.indexOfFirst { it.type == MEDIA_CLASS_NAME }
 
-private fun mediaHookSmali(method: Method, hookName: String = "onMediaViewed"): String? {
-    val paramIndex = method.mediaParamIndex()
+/**
+ * Smali `p` register of the Media parameter, accounting for the receiver and wide (`J`/`D`) params.
+ */
+private fun Method.mediaParamRegister(): Int? {
+    val paramIndex = mediaParamIndex()
     if (paramIndex < 0) return null
-    val pIndex = if (AccessFlags.STATIC.isSet(method.accessFlags)) paramIndex else paramIndex + 1
+    var register = if (AccessFlags.STATIC.isSet(accessFlags)) 0 else 1
+    for (i in 0 until paramIndex) {
+        register += parameters[i].type.registerWidth()
+    }
+    return register
+}
+
+private fun mediaHookSmali(method: Method, hookName: String = "onMediaViewed"): String? {
+    val pIndex = method.mediaParamRegister() ?: return null
     return "invoke-static {p$pIndex}, $HOOK_CLASS->$hookName(Ljava/lang/Object;)V"
 }
 
@@ -90,9 +100,10 @@ val watchHistoryPatch =
         compatibleWith(COMPATIBILITY_INSTAGRAM)
 
         execute {
-            fun MutableMethod.injectHook(hookName: String = "onMediaViewed") {
-                if (name == "<clinit>") return
-                val smali = mediaHookSmali(this, hookName) ?: return
+            fun MutableMethod.injectHook(hookName: String = "onMediaViewed"): Boolean {
+                if (name == "<clinit>") return false
+                if (implementation == null) return false
+                val smali = mediaHookSmali(this, hookName) ?: return false
                 val index =
                     if (name == "<init>") {
                         instructions.indexOfFirst { it.opcode == Opcode.INVOKE_DIRECT }
@@ -101,46 +112,77 @@ val watchHistoryPatch =
                         0
                     }
                 addInstructions(index, smali)
+                return true
+            }
+
+            var injected = 0
+            val matched = mutableListOf<String>()
+
+            fun record(anchor: String, count: Int) {
+                if (count <= 0) return
+                injected += count
+                matched += "$anchor=$count"
+            }
+
+            fun injectClassMethods(anchor: String, classType: String, hookName: String) {
+                var count = 0
+                mutableClassDefBy { it.type == classType }.methods.forEach { method ->
+                    runCatching {
+                        if (method.injectHook(hookName)) count++
+                    }
+                }
+                record(anchor, count)
             }
 
             // Each hook is independently runCatching-wrapped: a drifted anchor should skip only
-            // that capture point, never abort the patch.
+            // that capture point, never abort the patch — unless every capture point misses.
 
             // Feed + Reels analytics/session attach — first parameter is the Media object.
             runCatching {
-                AslSessionMediaFingerprint.method.injectHook()
+                if (AslSessionRelatedFingerprint.method.injectHook()) {
+                    record("aslSession", 1)
+                }
             }
 
             // Reels viewer: ClipsItemState is created/updated for the current clip.
             runCatching {
-                mutableClassDefBy { it.type == ClipsItemStateToStringFingerprint.classDef.type }
-                    .methods
-                    .forEach { it.injectHook("onMediaViewedReel") }
+                injectClassMethods(
+                    "clipsItemState",
+                    ClipsItemStateToStringFingerprint.classDef.type,
+                    "onMediaViewedReel",
+                )
             }
 
             // Reels item more-options controller is built when a Reel is on screen.
             runCatching {
-                ClipsOrganicMediaItemViewMoreOptionsFingerprint.method.injectHook("onMediaViewedReel")
+                if (ClipsOrganicMediaItemViewMoreOptionsFingerprint.method.injectHook("onMediaViewedReel")) {
+                    record("clipsOrganicMoreOptions", 1)
+                }
             }
 
             // Feed overflow helper/creator holds the bound post Media.
             runCatching {
-                mutableClassDefBy { it.type == MediaOptionsOverflowMenuCreatorFingerprint.classDef.type }
-                    .methods
-                    .forEach { it.injectHook("onMediaViewedPost") }
+                injectClassMethods(
+                    "overflowMenuCreator",
+                    MediaOptionsOverflowMenuCreatorFingerprint.classDef.type,
+                    "onMediaViewedPost",
+                )
             }
 
             runCatching {
-                mutableClassDefBy { it.type == MediaOptionsOverflowHelperFingerprint.classDef.type }
-                    .methods
-                    .forEach { it.injectHook("onMediaViewedPost") }
+                injectClassMethods(
+                    "overflowHelper",
+                    MediaOptionsOverflowHelperFingerprint.classDef.type,
+                    "onMediaViewedPost",
+                )
             }
 
             // Main-feed litho media binder, if the string still exists on this build.
             runCatching {
                 val method = MainFeedMediaBinderGroupFingerprint.matchOrNull()?.method ?: return@runCatching
+                if (method.implementation == null) return@runCatching
                 if (method.mediaParamIndex() >= 0) {
-                    method.injectHook("onMediaViewedPost")
+                    if (method.injectHook("onMediaViewedPost")) record("mainFeedBinder", 1)
                 } else {
                     val iget =
                         method.instructions.first {
@@ -152,8 +194,14 @@ val watchHistoryPatch =
                         iget.location.index + 1,
                         "invoke-static {v$mediaRegister}, $HOOK_CLASS->onMediaViewedPost(Ljava/lang/Object;)V",
                     )
+                    record("mainFeedBinder", 1)
                 }
             }
+
+            if (injected == 0) {
+                throw PatchException("Watch history: no capture hooks injected")
+            }
+            println("Watch history: injected $injected hooks (${matched.joinToString()})")
 
             enableSettings("watchHistory")
             addFlags("mainFeedActionBarFlags")

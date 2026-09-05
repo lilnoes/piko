@@ -237,9 +237,11 @@ public class WatchHistoryActivity extends Activity {
         emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
         if (empty) {
             boolean hasQuery = search != null && !search.trim().isEmpty();
-            emptyView.setText(hasQuery
-                ? str("piko_watch_history_no_results")
-                : str("piko_watch_history_empty"));
+            if (hasQuery) {
+                emptyView.setText(str("piko_watch_history_no_results"));
+            } else {
+                emptyView.setText(str("piko_watch_history_empty") + "\n\n" + WatchHistoryHook.captureStatus());
+            }
         }
     }
 

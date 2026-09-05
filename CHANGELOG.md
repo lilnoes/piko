@@ -1,3 +1,9 @@
+## [3.10.0](https://github.com/lilnoes/piko/compare/v3.9.0...v3.10.0) (2026-09-05)
+
+### ✨ New Features
+
+* **Instagram:** Add watch history for posts and Reels
+
 ## [3.9.0](https://github.com/crimera/piko/compare/v3.8.0...v3.9.0) (2026-08-31)
 
 ### 🐛 Bug Fixes

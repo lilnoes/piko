@@ -32,6 +32,8 @@ import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 
 private const val HOOK_CLASS = "$PATCHES_DESCRIPTOR/watchHistory/WatchHistoryHook;"
 
+/** Runtime hook class injected into feed and Reels viewers. */
+
 private object AslSessionMediaFingerprint : Fingerprint(
     returnType = "V",
     strings = listOf("asl_session_id", "is_video", "is_carousel"),

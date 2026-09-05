@@ -1,3 +1,9 @@
+## [3.10.1-dev.2](https://github.com/lilnoes/piko/compare/v3.10.1-dev.1...v3.10.1-dev.2) (2026-09-05)
+
+### 🐛 Bug Fixes
+
+* Document watch-history hook class for pre-release builds ([1967b77](https://github.com/lilnoes/piko/commit/1967b777f659b0f24e1dc26905cefad840e07e4e))
+
 ## [3.10.1-dev.1](https://github.com/lilnoes/piko/compare/v3.10.0...v3.10.1-dev.1) (2026-09-05)
 
 ### 🐛 Bug Fixes

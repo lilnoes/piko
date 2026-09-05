@@ -35,6 +35,7 @@ import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 private const val HOOK_CLASS = "$PATCHES_DESCRIPTOR/watchHistory/WatchHistoryHook;"
 
 /** Runtime hook class injected into feed and Reels viewers. */
+// Dummy: trigger a pre-release after restoring tag ancestry.
 
 private object ClipsItemStateToStringFingerprint : Fingerprint(
     name = "toString",

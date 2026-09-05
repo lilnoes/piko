@@ -4,10 +4,10 @@ patches {
     about {
         name = "Piko"
         description = "Morphe patches focused on Twitter/X"
-        source = "git@github.com:crimera/piko.git"
-        author = "crimera"
+        source = "git@github.com:lilnoes/piko.git"
+        author = "lilnoes"
         contact = "na"
-        website = "https://github.com/crimera/piko"
+        website = "https://github.com/lilnoes/piko"
         license = "GNU General Public License v3.0"
     }
 }
@@ -34,7 +34,7 @@ tasks {
     register<JavaExec>("generatePatchesList") {
         description = "Build patch with patch list"
 
-        dependsOn(build)
+        dependsOn("buildAndroid")
 
         classpath = sourceSets["main"].runtimeClasspath
         mainClass.set("app.morphe.util.PatchListGeneratorKt")

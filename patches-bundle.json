@@ -2,6 +2,6 @@
   "created_at": "2026-09-05T19:36:46",
   "description": "## [3.10.0](https://github.com/lilnoes/piko/compare/v3.9.0...v3.10.0) (2026-09-05)\n\n### \u2728 New Features\n\n* **Instagram:** Add watch history for posts and Reels",
   "download_url": "https://github.com/lilnoes/piko/releases/download/v3.10.0/patches-3.10.0.mpp",
-  "signature_download_url": "https://github.com/lilnoes/piko/releases/download/v3.10.0/patches-3.10.0.mpp.asc",
+  "signature_download_url": "",
   "version": "3.10.0"
 }

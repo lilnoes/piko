@@ -7,6 +7,7 @@
 package app.crimera.patches.instagram.misc.watchHistory
 
 import app.crimera.patches.instagram.entity.decoder.MEDIA_CLASS_NAME
+import app.crimera.patches.instagram.entity.decoder.MEDIAEXT_CLASS_NAME
 import app.crimera.patches.instagram.entity.decoder.decoderEntity
 import app.crimera.patches.instagram.entity.mediadata.AslSessionRelatedFingerprint
 import app.crimera.patches.instagram.entity.mediadata.mediaDataEntity
@@ -19,27 +20,103 @@ import app.crimera.patches.instagram.utils.Constants.COMPATIBILITY_INSTAGRAM
 import app.crimera.patches.instagram.utils.Constants.PATCHES_DESCRIPTOR
 import app.crimera.patches.instagram.utils.addFlags
 import app.crimera.patches.instagram.utils.enableSettings
+import app.crimera.utils.changeString
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructions
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
-import app.morphe.util.getReference
-import app.morphe.util.registersUsed
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
-import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 
 private const val HOOK_CLASS = "$PATCHES_DESCRIPTOR/watchHistory/WatchHistoryHook;"
 
-/** Runtime hook class injected into feed and Reels viewers. */
-// Dummy: trigger a pre-release after restoring tag ancestry.
+/**
+ * Anchors are matched by signature shape built from class names Instagram does not obfuscate,
+ * rather than by log strings. Verified against 439.0.0.37.89.
+ */
+private const val MEDIA_FRAME_LAYOUT = "Lcom/instagram/ui/widget/framelayout/MediaFrameLayout;"
+private const val AUTOPLAY_PLAYBACK_STATE = "Lcom/instagram/autoplay/models/AutoplayPlaybackState;"
+private const val AUTOPLAY_PLAYBACK_HISTORY = "Lcom/instagram/autoplay/models/AutoplayPlaybackHistory;"
+private const val AUTOPLAY_SCREEN_ITEM = "Lcom/instagram/autoplay/models/AutoplayScreenItemWithoutMetadata;"
+private const val REEL_VIEW_GROUP = "Lcom/instagram/reels/viewer/common/ReelViewGroup;"
+private const val REEL_ITEM = "Lcom/instagram/model/reels/ReelItem;"
 
-private object ClipsItemStateToStringFingerprint : Fingerprint(
-    name = "toString",
-    strings = listOf("ClipsItemState(lastUserPausedPositionMs="),
+private fun Method.paramTypes(): List<String> = parameterTypes.map { it.toString() }
+
+/**
+ * Instagram's own playback recorder: appends a timed segment whenever a media changes
+ * playback state, so this fires the moment a video actually starts playing.
+ */
+private object AutoplayPlaybackStateFingerprint : Fingerprint(
+    returnType = "V",
+    custom = { method, _ ->
+        val params = method.parameterTypes.map { it.toString() }
+        params.size == 2 &&
+            params[0] == AUTOPLAY_PLAYBACK_STATE &&
+            params[1] == MEDIA_CLASS_NAME
+    },
+)
+
+/** Created the first time a media gets a playback history entry. */
+private object AutoplayPlaybackHistoryInitFingerprint : Fingerprint(
+    definingClass = AUTOPLAY_PLAYBACK_HISTORY,
+    name = "<init>",
+    custom = { method, _ ->
+        val params = method.parameterTypes.map { it.toString() }
+        params.size == 4 && params[0] == MEDIA_CLASS_NAME
+    },
+)
+
+/** Resolves the on-screen item for a media. */
+private object AutoplayOnScreenItemFingerprint : Fingerprint(
+    returnType = AUTOPLAY_SCREEN_ITEM,
+    custom = { method, _ ->
+        val params = method.parameterTypes.map { it.toString() }
+        params.size == 1 && params[0] == MEDIA_CLASS_NAME
+    },
+)
+
+/**
+ * Per-post touch handler bundle, built when a feed post is bound to its view. It also
+ * constructs the gesture listener that other Instagram mods hook, but here the media is a
+ * plain parameter instead of a field read, and the constructor has free registers.
+ */
+private object FeedMediaTouchHandlerInitFingerprint : Fingerprint(
+    returnType = "V",
+    name = "<init>",
+    custom = { method, _ ->
+        val params = method.parameterTypes.map { it.toString() }
+        params.size >= 4 &&
+            params[0] == "Landroid/content/Context;" &&
+            params[1] == MEDIA_CLASS_NAME &&
+            params.contains(MEDIA_FRAME_LAYOUT)
+    },
+)
+
+/** Binds a media into its frame layout. */
+private object MediaFrameBindFingerprint : Fingerprint(
+    returnType = "V",
+    custom = { method, _ ->
+        val params = method.parameterTypes.map { it.toString() }
+        params.size == 4 &&
+            params[0] == MEDIA_CLASS_NAME &&
+            params[3] == MEDIA_FRAME_LAYOUT &&
+            method.implementation != null
+    },
+)
+
+/** Reel and story viewer binder: carries the media alongside the reel view group. */
+private object ReelViewerBinderFingerprint : Fingerprint(
+    returnType = "V",
+    custom = { method, _ ->
+        val params = method.parameterTypes.map { it.toString() }
+        params.contains(MEDIA_CLASS_NAME) &&
+            (params.contains(REEL_VIEW_GROUP) || params.contains(REEL_ITEM)) &&
+            params.contains(MEDIA_FRAME_LAYOUT)
+    },
 )
 
 private object ClipsOrganicMediaItemViewMoreOptionsFingerprint : Fingerprint(
@@ -51,34 +128,25 @@ private object MediaOptionsOverflowMenuCreatorFingerprint : Fingerprint(
     strings = listOf("MediaOptionsOverflowMenuCreator"),
 )
 
-private object MediaOptionsOverflowHelperFingerprint : Fingerprint(
-    strings = listOf("MediaOptionsOverflowHelper"),
+/** Placeholder in the extension, rewritten with the list of anchors that injected. */
+private object InjectionReportExtensionFingerprint : Fingerprint(
+    definingClass = HOOK_CLASS,
+    name = "injectionReport",
 )
 
-private object MainFeedMediaBinderGroupFingerprint : Fingerprint(
-    strings = listOf("MainFeedMediaBinderGroup"),
-)
+private fun Method.mediaParamIndex(): Int = paramTypes().indexOfFirst { it == MEDIA_CLASS_NAME }
 
 private fun CharSequence.registerWidth(): Int = if (this == "J" || this == "D") 2 else 1
 
-private fun Method.mediaParamIndex(): Int = parameters.indexOfFirst { it.type == MEDIA_CLASS_NAME }
-
-/**
- * Smali `p` register of the Media parameter, accounting for the receiver and wide (`J`/`D`) params.
- */
+/** Smali `p` register of the media parameter, accounting for the receiver and wide params. */
 private fun Method.mediaParamRegister(): Int? {
     val paramIndex = mediaParamIndex()
     if (paramIndex < 0) return null
     var register = if (AccessFlags.STATIC.isSet(accessFlags)) 0 else 1
     for (i in 0 until paramIndex) {
-        register += parameters[i].type.registerWidth()
+        register += paramTypes()[i].registerWidth()
     }
     return register
-}
-
-private fun mediaHookSmali(method: Method, hookName: String = "onMediaViewed"): String? {
-    val pIndex = method.mediaParamRegister() ?: return null
-    return "invoke-static {p$pIndex}, $HOOK_CLASS->$hookName(Ljava/lang/Object;)V"
 }
 
 @Suppress("unused")
@@ -101,108 +169,107 @@ val watchHistoryPatch =
         compatibleWith(COMPATIBILITY_INSTAGRAM)
 
         execute {
-            fun MutableMethod.injectHook(hookName: String = "onMediaViewed"): Boolean {
+            val report = mutableListOf<String>()
+            var injected = 0
+
+            fun MutableMethod.injectHook(hookName: String): Boolean {
                 if (name == "<clinit>") return false
                 if (implementation == null) return false
-                val smali = mediaHookSmali(this, hookName) ?: return false
+                val register = mediaParamRegister() ?: return false
                 val index =
                     if (name == "<init>") {
+                        // Never before the super() call.
                         instructions.indexOfFirst { it.opcode == Opcode.INVOKE_DIRECT }
                             .let { if (it < 0) 0 else it + 1 }
                     } else {
                         0
                     }
-                addInstructions(index, smali)
+                // The Reels binders take 20+ parameters, so the media register is routinely
+                // above v15 and the non-range invoke would not encode.
+                addInstructions(
+                    index,
+                    "invoke-static/range {p$register .. p$register}, $HOOK_CLASS->$hookName(Ljava/lang/Object;)V",
+                )
                 return true
             }
 
-            var injected = 0
-            val matched = mutableListOf<String>()
-
-            fun record(anchor: String, count: Int) {
-                if (count <= 0) return
+            /**
+             * Each anchor is isolated: a drifted one must skip only its own capture point.
+             * An anchor that matches but injects nothing is recorded as `anchor=0` rather than
+             * passing silently, which is how the previous revision shipped a dead feature.
+             */
+            fun anchor(name: String, block: () -> Int) {
+                val count =
+                    runCatching(block).getOrElse {
+                        report += "$name=miss"
+                        return
+                    }
                 injected += count
-                matched += "$anchor=$count"
+                report += "$name=$count"
             }
 
-            fun injectClassMethods(anchor: String, classType: String, hookName: String) {
+            fun sweepClass(classType: String, hookName: String): Int {
                 var count = 0
                 mutableClassDefBy { it.type == classType }.methods.forEach { method ->
-                    runCatching {
-                        if (method.injectHook(hookName)) count++
-                    }
+                    runCatching { if (method.injectHook(hookName)) count++ }
                 }
-                record(anchor, count)
+                return count
             }
 
-            // Each hook is independently runCatching-wrapped: a drifted anchor should skip only
-            // that capture point, never abort the patch — unless every capture point misses.
-
-            // Feed + Reels analytics/session attach — first parameter is the Media object.
-            runCatching {
-                if (AslSessionRelatedFingerprint.method.injectHook()) {
-                    record("aslSession", 1)
-                }
+            // Video actually started playing.
+            anchor("autoplayState") {
+                if (AutoplayPlaybackStateFingerprint.method.injectHook("onAutoplayState")) 1 else 0
             }
 
-            // Reels viewer: ClipsItemState is created/updated for the current clip.
-            runCatching {
-                injectClassMethods(
-                    "clipsItemState",
-                    ClipsItemStateToStringFingerprint.classDef.type,
-                    "onMediaViewedReel",
-                )
+            anchor("autoplayHistory") {
+                if (AutoplayPlaybackHistoryInitFingerprint.method.injectHook("onAutoplayHistory")) 1 else 0
             }
 
-            // Reels item more-options controller is built when a Reel is on screen.
-            runCatching {
-                if (ClipsOrganicMediaItemViewMoreOptionsFingerprint.method.injectHook("onMediaViewedReel")) {
-                    record("clipsOrganicMoreOptions", 1)
-                }
+            anchor("autoplayScreen") {
+                if (AutoplayOnScreenItemFingerprint.method.injectHook("onScreenItem")) 1 else 0
             }
 
-            // Feed overflow helper/creator holds the bound post Media.
-            runCatching {
-                injectClassMethods(
-                    "overflowMenuCreator",
-                    MediaOptionsOverflowMenuCreatorFingerprint.classDef.type,
-                    "onMediaViewedPost",
-                )
+            // Feed post bound to its view.
+            anchor("feedBind") {
+                sweepClass(FeedMediaTouchHandlerInitFingerprint.classDef.type, "onFeedBind")
             }
 
-            runCatching {
-                injectClassMethods(
-                    "overflowHelper",
-                    MediaOptionsOverflowHelperFingerprint.classDef.type,
-                    "onMediaViewedPost",
-                )
+            anchor("frameBind") {
+                if (MediaFrameBindFingerprint.method.injectHook("onFrameBind")) 1 else 0
             }
 
-            // Main-feed litho media binder, if the string still exists on this build.
-            runCatching {
-                val method = MainFeedMediaBinderGroupFingerprint.matchOrNull()?.method ?: return@runCatching
-                if (method.implementation == null) return@runCatching
-                if (method.mediaParamIndex() >= 0) {
-                    if (method.injectHook("onMediaViewedPost")) record("mainFeedBinder", 1)
-                } else {
-                    val iget =
-                        method.instructions.first {
-                            it.opcode == Opcode.IGET_OBJECT &&
-                                it.getReference<FieldReference>()?.type == MEDIA_CLASS_NAME
-                        }
-                    val mediaRegister = iget.registersUsed[0]
-                    method.addInstructions(
-                        iget.location.index + 1,
-                        "invoke-static {v$mediaRegister}, $HOOK_CLASS->onMediaViewedPost(Ljava/lang/Object;)V",
-                    )
-                    record("mainFeedBinder", 1)
-                }
+            // Reel and story viewer.
+            anchor("reelViewer") {
+                sweepClass(ReelViewerBinderFingerprint.classDef.type, "onReelBind")
+            }
+
+            anchor("clipsOptions") {
+                if (ClipsOrganicMediaItemViewMoreOptionsFingerprint.method.injectHook("onReelBind")) 1 else 0
+            }
+
+            anchor("overflowCreator") {
+                sweepClass(MediaOptionsOverflowMenuCreatorFingerprint.classDef.type, "onFeedBind")
+            }
+
+            anchor("aslSession") {
+                if (AslSessionRelatedFingerprint.method.injectHook("onAslSession")) 1 else 0
+            }
+
+            // Coverage net: the media helper every surface calls through.
+            anchor("mediaExt") {
+                sweepClass(MEDIAEXT_CLASS_NAME, "onMediaExt")
             }
 
             if (injected == 0) {
-                throw PatchException("Watch history: no capture hooks injected")
+                throw PatchException("Watch history: no capture hooks injected (${report.joinToString()})")
             }
-            println("Watch history: injected $injected hooks (${matched.joinToString()})")
+
+            // Surface the result in the app; patch-time stdout is invisible in the manager.
+            val summary = "$injected hooks: ${report.joinToString()}".replace(Regex("[^A-Za-z0-9=,:. -]"), "_")
+            runCatching {
+                InjectionReportExtensionFingerprint.changeString("injection-report", summary)
+            }
+            println("Watch history: $summary")
 
             enableSettings("watchHistory")
             addFlags("mainFeedActionBarFlags")

@@ -377,4 +377,8 @@
     <string name="piko_watch_history_clear_confirm">Clear ALL watch history?</string>
     <string name="piko_watch_history_post">post</string>
     <string name="piko_watch_history_reel">reel</string>
+    <string name="piko_watch_history_debug">Debug</string>
+    <string name="piko_watch_history_debug_title">Watch history capture log</string>
+    <string name="piko_copy">Copy</string>
+    <string name="piko_copied">Copied</string>
 </resources>

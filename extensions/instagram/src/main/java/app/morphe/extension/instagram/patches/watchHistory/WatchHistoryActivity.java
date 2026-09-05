@@ -9,6 +9,8 @@ package app.morphe.extension.instagram.patches.watchHistory;
 import static app.morphe.extension.instagram.utils.IgStr.str;
 
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -22,7 +24,9 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -127,16 +131,11 @@ public class WatchHistoryActivity extends Activity {
         titleParams.leftMargin = Dim.dp8 / 2;
         title.setLayoutParams(titleParams);
 
-        TextView clear = new TextView(this);
-        clear.setText(str("piko_clear"));
-        clear.setTextSize(TypedValue.COMPLEX_UNIT_PX, PikoUtils.spToPixels(16));
-        clear.setTextColor(InstagramPreferenceStyle.primaryTextColor());
-        clear.setPadding(Dim.dp8, Dim.dp8, Dim.dp8, Dim.dp8);
-        LinearLayout.LayoutParams clearParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        clearParams.gravity = Gravity.CENTER_VERTICAL;
-        clear.setLayoutParams(clearParams);
+        TextView debug = toolbarButton(str("piko_watch_history_debug"));
+        debug.setTextColor(InstagramPreferenceStyle.secondaryTextColor());
+        debug.setOnClickListener(v -> showDebugLog());
+
+        TextView clear = toolbarButton(str("piko_clear"));
         clear.setOnClickListener(v -> new android.app.AlertDialog.Builder(InstagramPreferenceStyle.dialogContext(this))
             .setMessage(str("piko_watch_history_clear_confirm"))
             .setPositiveButton(str("piko_clear"), (d, w) -> {
@@ -148,8 +147,52 @@ public class WatchHistoryActivity extends Activity {
 
         toolbar.addView(back);
         toolbar.addView(title);
+        toolbar.addView(debug);
         toolbar.addView(clear);
         return toolbar;
+    }
+
+    private TextView toolbarButton(String label) {
+        TextView button = new TextView(this);
+        button.setText(label);
+        button.setTextSize(TypedValue.COMPLEX_UNIT_PX, PikoUtils.spToPixels(16));
+        button.setTextColor(InstagramPreferenceStyle.primaryTextColor());
+        button.setPadding(Dim.dp8, Dim.dp8, Dim.dp8, Dim.dp8);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.gravity = Gravity.CENTER_VERTICAL;
+        button.setLayoutParams(params);
+        return button;
+    }
+
+    private void showDebugLog() {
+        String log = WatchHistoryHook.debugLog();
+
+        TextView text = new TextView(this);
+        text.setText(log);
+        text.setTextIsSelectable(true);
+        text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        text.setTypeface(android.graphics.Typeface.MONOSPACE);
+        text.setTextColor(InstagramPreferenceStyle.primaryTextColor());
+        text.setPadding(Dim.dp8 * 2, Dim.dp8 * 2, Dim.dp8 * 2, Dim.dp8 * 2);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(text);
+
+        new android.app.AlertDialog.Builder(InstagramPreferenceStyle.dialogContext(this))
+            .setTitle(str("piko_watch_history_debug_title"))
+            .setView(scroll)
+            .setPositiveButton(str("piko_copy"), (d, w) -> {
+                ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                if (clipboard != null) {
+                    clipboard.setPrimaryClip(ClipData.newPlainText("piko watch history", log));
+                    Toast.makeText(this, str("piko_copied"), Toast.LENGTH_SHORT).show();
+                }
+            })
+            .setNegativeButton(str("piko_clear"), (d, w) -> WatchHistoryHook.clearDebugLog())
+            .setNeutralButton(str("piko_cancel"), null)
+            .show();
     }
 
     private EditText buildSearch() {

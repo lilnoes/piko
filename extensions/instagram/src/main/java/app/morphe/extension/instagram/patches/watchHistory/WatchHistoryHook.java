@@ -41,7 +41,7 @@ public class WatchHistoryHook {
      */
     private static final String[] SITES = {
         "autoplayState", "autoplayHistory", "screenItem", "feedBind",
-        "frameBind", "reelBind", "aslSession", "mediaExt",
+        "frameBind", "reelBind", "aslSession", "mediaExt", "clipsState",
     };
     private static final int[] SITE_CALLS = new int[SITES.length];
     private static final int[] SITE_NULLS = new int[SITES.length];
@@ -115,6 +115,10 @@ public class WatchHistoryHook {
         capture(media, 7);
     }
 
+    public static void onClipsState(Object media) {
+        capture(media, 8);
+    }
+
     /**
      * Runs on Instagram's own threads inside hot binder and playback paths, so everything
      * before the worker hand-off is reference comparison and integer counting.
@@ -185,6 +189,19 @@ public class WatchHistoryHook {
         WatchHistoryDebug.log(site + " skip " + reason + (mediaId == null ? "" : " id=" + mediaId));
     }
 
+    private static void skipQuiet(String reason) {
+        lastSkip = reason;
+    }
+
+    private static boolean isWatchSite(int site) {
+        // autoplayState, autoplayHistory, reelBind, clipsState — real playback / Reels viewer
+        return site == 0 || site == 1 || site == 5 || site == 8;
+    }
+
+    private static boolean isReelSite(int site) {
+        return site == 5 || site == 8;
+    }
+
     private static void persist(Object mediaObject, int site) {
         String siteName = SITES[site];
         try {
@@ -210,7 +227,7 @@ public class WatchHistoryHook {
             long now = System.currentTimeMillis();
             Long last = RECENT.put(mediaId, now);
             if (last != null && now - last < DEDUPE_WINDOW_MS) {
-                skip(siteName, mediaId, "dedupe");
+                skipQuiet("dedupe");
                 return;
             }
             if (RECENT.size() > 400) RECENT.clear();
@@ -222,12 +239,11 @@ public class WatchHistoryHook {
                 postType = PostType.POST;
             }
             if (postType == PostType.STORY) {
-                skip(siteName, mediaId, "story");
+                skipQuiet("story");
                 return;
             }
-            String type = postType == PostType.REEL
-                ? PikoWatchHistoryDb.TYPE_REEL
-                : PikoWatchHistoryDb.TYPE_POST;
+            boolean reel = postType == PostType.REEL || isReelSite(site);
+            String type = reel ? PikoWatchHistoryDb.TYPE_REEL : PikoWatchHistoryDb.TYPE_POST;
 
             String username = "";
             try {
@@ -237,6 +253,10 @@ public class WatchHistoryHook {
                     if (name != null) username = name;
                 }
             } catch (Exception ignored) {}
+            if (username.isEmpty()) {
+                skip(siteName, mediaId, "no username type=" + postType);
+                return;
+            }
 
             String caption = "";
             try {
@@ -262,12 +282,12 @@ public class WatchHistoryHook {
             entry.hashtags = extractHashtags(caption);
             entry.permalink = permalink;
             entry.watchedAt = now;
-            PikoWatchHistoryDb.getInstance(ctx).upsert(entry);
+            PikoWatchHistoryDb.getInstance(ctx).upsert(entry, isWatchSite(site));
 
             PERSISTED.incrementAndGet();
             lastSkip = "";
-            WatchHistoryDebug.log(siteName + " stored " + type + " " + mediaId
-                + (username.isEmpty() ? "" : " @" + username));
+            WatchHistoryDebug.log(siteName + " stored " + type + " " + mediaId + " @" + username
+                + " product=" + postType);
         } catch (Exception e) {
             skip(siteName, null, "error: " + e);
             Logger.printException(() -> "WatchHistoryHook.persist", e);

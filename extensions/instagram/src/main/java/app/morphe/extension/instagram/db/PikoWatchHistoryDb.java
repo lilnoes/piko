@@ -65,20 +65,51 @@ public class PikoWatchHistoryDb extends SQLiteOpenHelper {
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
     }
 
-    public void upsert(Entry entry) {
+    /**
+     * Inserts a new watch, or refreshes metadata on a duplicate.
+     * bumpWatchedAt is only true for a real watch (playback / Reels viewer). Bind callbacks
+     * must not rewrite watched_at or a later prefetch steals the top of the list.
+     */
+    public void upsert(Entry entry, boolean bumpWatchedAt) {
         if (entry == null || entry.mediaId == null || entry.mediaId.isEmpty()) return;
         SQLiteDatabase db = getWritableDatabase();
-        ContentValues values = new ContentValues();
-        values.put("media_id", entry.mediaId);
-        values.put("type", entry.type);
-        values.put("username", emptyToNull(entry.username));
-        values.put("title", emptyToNull(entry.title));
-        values.put("caption", emptyToNull(entry.caption));
-        values.put("hashtags", emptyToNull(entry.hashtags));
-        values.put("permalink", emptyToNull(entry.permalink));
-        values.put("watched_at", entry.watchedAt);
-        db.insertWithOnConflict(TABLE, null, values, SQLiteDatabase.CONFLICT_REPLACE);
-        trimToCap(db);
+        Cursor existing = db.rawQuery(
+            "SELECT type, username, title, caption, hashtags, permalink, watched_at FROM "
+                + TABLE + " WHERE media_id = ?",
+            new String[]{entry.mediaId}
+        );
+        try {
+            if (existing.moveToFirst()) {
+                ContentValues values = new ContentValues();
+                boolean existingReel = TYPE_REEL.equals(existing.getString(0));
+                values.put("type", existingReel || TYPE_REEL.equals(entry.type) ? TYPE_REEL : entry.type);
+                values.put("username", firstNonEmpty(entry.username, existing.getString(1)));
+                values.put("title", firstNonEmpty(entry.title, existing.getString(2)));
+                values.put("caption", firstNonEmpty(entry.caption, existing.getString(3)));
+                values.put("hashtags", firstNonEmpty(entry.hashtags, existing.getString(4)));
+                values.put("permalink", firstNonEmpty(entry.permalink, existing.getString(5)));
+                values.put("watched_at", bumpWatchedAt ? entry.watchedAt : existing.getLong(6));
+                db.update(TABLE, values, "media_id = ?", new String[]{entry.mediaId});
+            } else {
+                ContentValues values = new ContentValues();
+                values.put("media_id", entry.mediaId);
+                values.put("type", entry.type);
+                values.put("username", emptyToNull(entry.username));
+                values.put("title", emptyToNull(entry.title));
+                values.put("caption", emptyToNull(entry.caption));
+                values.put("hashtags", emptyToNull(entry.hashtags));
+                values.put("permalink", emptyToNull(entry.permalink));
+                values.put("watched_at", entry.watchedAt);
+                db.insert(TABLE, null, values);
+                trimToCap(db);
+            }
+        } finally {
+            existing.close();
+        }
+    }
+
+    public void upsert(Entry entry) {
+        upsert(entry, true);
     }
 
     private void trimToCap(SQLiteDatabase db) {
@@ -142,6 +173,10 @@ public class PikoWatchHistoryDb extends SQLiteOpenHelper {
 
     private static String emptyToNull(String value) {
         return value == null || value.isEmpty() ? null : value;
+    }
+
+    private static String firstNonEmpty(String preferred, String fallback) {
+        return preferred != null && !preferred.isEmpty() ? preferred : emptyToNull(fallback);
     }
 
     public static class Entry {

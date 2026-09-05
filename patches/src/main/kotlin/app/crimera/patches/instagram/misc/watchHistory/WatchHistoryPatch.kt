@@ -7,9 +7,7 @@
 package app.crimera.patches.instagram.misc.watchHistory
 
 import app.crimera.patches.instagram.entity.decoder.MEDIA_CLASS_NAME
-import app.crimera.patches.instagram.entity.decoder.MEDIAEXT_CLASS_NAME
 import app.crimera.patches.instagram.entity.decoder.decoderEntity
-import app.crimera.patches.instagram.entity.mediadata.AslSessionRelatedFingerprint
 import app.crimera.patches.instagram.entity.mediadata.mediaDataEntity
 import app.crimera.patches.instagram.entity.originalSoundDataIntf.originalSoundDataIntfEntity
 import app.crimera.patches.instagram.entity.trackDataIntf.trackDataIntfEntity
@@ -27,9 +25,12 @@ import app.morphe.patcher.extensions.InstructionExtensions.instructions
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
+import app.morphe.util.getReference
+import app.morphe.util.registersUsed
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
+import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 
 private const val HOOK_CLASS = "$PATCHES_DESCRIPTOR/watchHistory/WatchHistoryHook;"
 
@@ -119,13 +120,25 @@ private object ReelViewerBinderFingerprint : Fingerprint(
     },
 )
 
-private object ClipsOrganicMediaItemViewMoreOptionsFingerprint : Fingerprint(
-    strings = listOf("ClipsOrganicMediaItemViewMoreOptionsController", "reels"),
+private object ClipsItemStateToStringFingerprint : Fingerprint(
+    name = "toString",
+    strings = listOf("ClipsItemState(lastUserPausedPositionMs="),
 )
 
-private object MediaOptionsOverflowMenuCreatorFingerprint : Fingerprint(
-    returnType = "V",
-    strings = listOf("MediaOptionsOverflowMenuCreator"),
+/**
+ * Factory that builds ClipsItemState from a clips item. It immediately reads Media off the
+ * item (`A0U` in 439); we hook after that field read because the method itself has no Media param.
+ */
+private object ClipsItemStateFromItemFingerprint : Fingerprint(
+    classFingerprint = ClipsItemStateToStringFingerprint,
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
+    custom = { method, classDef ->
+        method.returnType == classDef.type &&
+            method.implementation?.instructions?.any { insn ->
+                insn.opcode == Opcode.IGET_OBJECT &&
+                    insn.getReference<FieldReference>()?.type == MEDIA_CLASS_NAME
+            } == true
+    },
 )
 
 /** Placeholder in the extension, rewritten with the list of anchors that injected. */
@@ -193,6 +206,20 @@ val watchHistoryPatch =
                 return true
             }
 
+            fun MutableMethod.injectAfterMediaIget(hookName: String): Boolean {
+                val iget =
+                    instructions.firstOrNull {
+                        it.opcode == Opcode.IGET_OBJECT &&
+                            it.getReference<FieldReference>()?.type == MEDIA_CLASS_NAME
+                    } ?: return false
+                val register = iget.registersUsed[0]
+                addInstructions(
+                    iget.location.index + 1,
+                    "invoke-static/range {v$register .. v$register}, $HOOK_CLASS->$hookName(Ljava/lang/Object;)V",
+                )
+                return true
+            }
+
             /**
              * Each anchor is isolated: a drifted one must skip only its own capture point.
              * An anchor that matches but injects nothing is recorded as `anchor=0` rather than
@@ -238,26 +265,14 @@ val watchHistoryPatch =
                 if (MediaFrameBindFingerprint.method.injectHook("onFrameBind")) 1 else 0
             }
 
-            // Reel and story viewer.
+            // Reels viewer: ClipsItemState.fromClipsItem reads Media off the item.
+            anchor("clipsState") {
+                if (ClipsItemStateFromItemFingerprint.method.injectAfterMediaIget("onClipsState")) 1 else 0
+            }
+
+            // Story / in-feed reel viewer binders.
             anchor("reelViewer") {
                 sweepClass(ReelViewerBinderFingerprint.classDef.type, "onReelBind")
-            }
-
-            anchor("clipsOptions") {
-                if (ClipsOrganicMediaItemViewMoreOptionsFingerprint.method.injectHook("onReelBind")) 1 else 0
-            }
-
-            anchor("overflowCreator") {
-                sweepClass(MediaOptionsOverflowMenuCreatorFingerprint.classDef.type, "onFeedBind")
-            }
-
-            anchor("aslSession") {
-                if (AslSessionRelatedFingerprint.method.injectHook("onAslSession")) 1 else 0
-            }
-
-            // Coverage net: the media helper every surface calls through.
-            anchor("mediaExt") {
-                sweepClass(MEDIAEXT_CLASS_NAME, "onMediaExt")
             }
 
             if (injected == 0) {

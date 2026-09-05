@@ -82,27 +82,25 @@ public class MediaData extends Entity {
     }
 
     public PostType getPostType() {
-        try{
+        try {
             String postType = this.getPostTypeKey().toLowerCase();
-            //TODO: for some reason clips are not recogonised.
-            // Need to fix it later.
-            if(postType.equals("clips")){
+            if (postType.contains("clip") || postType.contains("reel") || postType.equals("igtv")) {
                 return PostType.REEL;
             }
-            if(postType.equals("story")){
+            if (postType.contains("story")) {
                 return PostType.STORY;
             }
-            if(postType.contains("carousel")){
+            if (postType.contains("carousel")) {
                 return PostType.CAROUSEL;
             }
         } catch (Exception e) {
-
         }
         return PostType.POST;
     }
 
     private String getPostTypeKey() throws Exception {
-        return (String) super.getField(this.getMoreExtendedData(), "A7Q");
+        Object value = super.getField(this.getMoreExtendedData(), "A7Q");
+        return value == null ? "" : String.valueOf(value);
     }
 
     private List<MediaData> getCarouselMediaData() throws Exception {

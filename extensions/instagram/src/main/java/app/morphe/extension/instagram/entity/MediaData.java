@@ -271,6 +271,32 @@ public class MediaData extends Entity {
         return null;
     }
 
+    /** Cover / thumbnail URL. Videos still have image_versions2; pick a mid-size variant. */
+    public String getCoverUrl() {
+        try {
+            List<ImageData> variants = this.getImageVariants();
+            if (variants == null || variants.isEmpty()) return null;
+            ImageData best = null;
+            int bestWidth = Integer.MAX_VALUE;
+            for (ImageData variant : variants) {
+                int width;
+                try {
+                    width = variant.getWidth();
+                } catch (Exception e) {
+                    width = 0;
+                }
+                if (width >= 240 && width < bestWidth) {
+                    best = variant;
+                    bestWidth = width;
+                }
+            }
+            if (best == null) best = variants.get(0);
+            return best.getUrl();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
 
     public String getMediaLink() throws Exception {
         return this.isVideo() ? this.getVideoLink() : this.getImageLink();

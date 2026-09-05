@@ -272,6 +272,15 @@ public class WatchHistoryHook {
                 String link = Links.generatePostLink(mediaObject, 0);
                 if (link != null) permalink = link;
             } catch (Exception ignored) {}
+            if (reel && permalink.contains("/p/")) {
+                permalink = permalink.replace("/p/", "/reel/");
+            }
+
+            String coverUrl = "";
+            try {
+                String cover = mediaData.getCoverUrl();
+                if (cover != null) coverUrl = cover;
+            } catch (Exception ignored) {}
 
             PikoWatchHistoryDb.Entry entry = new PikoWatchHistoryDb.Entry();
             entry.mediaId = mediaId;
@@ -281,6 +290,7 @@ public class WatchHistoryHook {
             entry.caption = caption;
             entry.hashtags = extractHashtags(caption);
             entry.permalink = permalink;
+            entry.coverUrl = coverUrl;
             entry.watchedAt = now;
             PikoWatchHistoryDb.getInstance(ctx).upsert(entry, isWatchSite(site));
 

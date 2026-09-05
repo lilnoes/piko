@@ -125,22 +125,6 @@ private object ClipsItemStateToStringFingerprint : Fingerprint(
     strings = listOf("ClipsItemState(lastUserPausedPositionMs="),
 )
 
-/**
- * Factory that builds ClipsItemState from a clips item. It immediately reads Media off the
- * item (`A0U` in 439); we hook after that field read because the method itself has no Media param.
- */
-private object ClipsItemStateFromItemFingerprint : Fingerprint(
-    classFingerprint = ClipsItemStateToStringFingerprint,
-    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
-    custom = { method, classDef ->
-        method.returnType == classDef.type &&
-            method.implementation?.instructions?.any { insn ->
-                insn.opcode == Opcode.IGET_OBJECT &&
-                    insn.getReference<FieldReference>()?.type == MEDIA_CLASS_NAME
-            } == true
-    },
-)
-
 /** Placeholder in the extension, rewritten with the list of anchors that injected. */
 private object InjectionReportExtensionFingerprint : Fingerprint(
     definingClass = HOOK_CLASS,
@@ -265,9 +249,19 @@ val watchHistoryPatch =
                 if (MediaFrameBindFingerprint.method.injectHook("onFrameBind")) 1 else 0
             }
 
-            // Reels viewer: ClipsItemState.fromClipsItem reads Media off the item.
+            // Reels viewer: ClipsItemState has no Media parameter. The factory that builds
+            // it from a ClipsItem immediately reads Media off a field — same pattern InstaPro
+            // uses on the feed gesture listener. The previous fingerprint required PUBLIC+STATIC
+            // without FINAL and used getReference during match, which missed on 439 (clipsState=miss).
             anchor("clipsState") {
-                if (ClipsItemStateFromItemFingerprint.method.injectAfterMediaIget("onClipsState")) 1 else 0
+                var count = 0
+                mutableClassDefBy { it.type == ClipsItemStateToStringFingerprint.classDef.type }
+                    .methods
+                    .forEach { method ->
+                        if (method.name == "<clinit>" || method.name == "toString") return@forEach
+                        runCatching { if (method.injectAfterMediaIget("onClipsState")) count++ }
+                    }
+                count
             }
 
             // Story / in-feed reel viewer binders.

@@ -21,7 +21,7 @@ public class PikoWatchHistoryDb extends SQLiteOpenHelper {
     public static final String TYPE_REEL = "reel";
 
     private static final String DB_NAME = "piko_watch_history.db";
-    private static final int DB_VERSION = 1;
+    private static final int DB_VERSION = 2;
     private static final String TABLE = "watch_history";
     private static final int MAX_ROWS = 1000;
 
@@ -54,6 +54,7 @@ public class PikoWatchHistoryDb extends SQLiteOpenHelper {
             "caption TEXT," +
             "hashtags TEXT," +
             "permalink TEXT," +
+            "cover_url TEXT," +
             "watched_at INTEGER NOT NULL" +
             ")"
         );
@@ -63,6 +64,9 @@ public class PikoWatchHistoryDb extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE " + TABLE + " ADD COLUMN cover_url TEXT");
+        }
     }
 
     /**
@@ -74,7 +78,7 @@ public class PikoWatchHistoryDb extends SQLiteOpenHelper {
         if (entry == null || entry.mediaId == null || entry.mediaId.isEmpty()) return;
         SQLiteDatabase db = getWritableDatabase();
         Cursor existing = db.rawQuery(
-            "SELECT type, username, title, caption, hashtags, permalink, watched_at FROM "
+            "SELECT type, username, title, caption, hashtags, permalink, watched_at, cover_url FROM "
                 + TABLE + " WHERE media_id = ?",
             new String[]{entry.mediaId}
         );
@@ -88,6 +92,7 @@ public class PikoWatchHistoryDb extends SQLiteOpenHelper {
                 values.put("caption", firstNonEmpty(entry.caption, existing.getString(3)));
                 values.put("hashtags", firstNonEmpty(entry.hashtags, existing.getString(4)));
                 values.put("permalink", firstNonEmpty(entry.permalink, existing.getString(5)));
+                values.put("cover_url", firstNonEmpty(entry.coverUrl, existing.getString(7)));
                 values.put("watched_at", bumpWatchedAt ? entry.watchedAt : existing.getLong(6));
                 db.update(TABLE, values, "media_id = ?", new String[]{entry.mediaId});
             } else {
@@ -99,6 +104,7 @@ public class PikoWatchHistoryDb extends SQLiteOpenHelper {
                 values.put("caption", emptyToNull(entry.caption));
                 values.put("hashtags", emptyToNull(entry.hashtags));
                 values.put("permalink", emptyToNull(entry.permalink));
+                values.put("cover_url", emptyToNull(entry.coverUrl));
                 values.put("watched_at", entry.watchedAt);
                 db.insert(TABLE, null, values);
                 trimToCap(db);
@@ -122,7 +128,7 @@ public class PikoWatchHistoryDb extends SQLiteOpenHelper {
     public List<Entry> query(String type, String search) {
         ArrayList<Entry> results = new ArrayList<>();
         StringBuilder sql = new StringBuilder(
-            "SELECT media_id, type, username, title, caption, hashtags, permalink, watched_at FROM "
+            "SELECT media_id, type, username, title, caption, hashtags, permalink, watched_at, cover_url FROM "
             + TABLE + " WHERE 1=1"
         );
         ArrayList<String> args = new ArrayList<>();
@@ -159,6 +165,7 @@ public class PikoWatchHistoryDb extends SQLiteOpenHelper {
                 entry.hashtags = cursor.getString(5);
                 entry.permalink = cursor.getString(6);
                 entry.watchedAt = cursor.getLong(7);
+                entry.coverUrl = cursor.getString(8);
                 results.add(entry);
             }
         } finally {
@@ -187,6 +194,7 @@ public class PikoWatchHistoryDb extends SQLiteOpenHelper {
         public String caption;
         public String hashtags;
         public String permalink;
+        public String coverUrl;
         public long watchedAt;
     }
 }

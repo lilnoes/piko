@@ -64,7 +64,7 @@ public class HookFlags {
 
     private static void mainFeedActionBarFlags() {
         Set<String> pref = Pref.mainFeedActionBarButtons();
-        if(!pref.isEmpty()) {
+        if(!pref.isEmpty() || Pref.watchHistory()) {
             BOOL_FLAGS.put("81826::1", true); //igx_action_bar_service_replacement::is_main_feed_replaced
             BOOL_FLAGS.put("81826::4", true); //igx_action_bar_service_replacement::is_main_feed_large_screen_replaced
         }

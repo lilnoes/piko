@@ -548,6 +548,22 @@ public class ScreenBuilder {
                     )
             );
         }
+        if (SettingsStatus.watchHistory) {
+            addPreference(
+                    helper.switchPreference(
+                            str("piko_watch_history"),
+                            str("piko_watch_history_desc"),
+                            Settings.WATCH_HISTORY
+                    )
+            );
+            addPreference(
+                    helper.buttonPreference(
+                            str("piko_view_watch_history"),
+                            "",
+                            "view_watch_history"
+                    )
+            );
+        }
         if (SettingsStatus.disableVideoAutoplay) {
             addPreference(
                     helper.switchPreference(

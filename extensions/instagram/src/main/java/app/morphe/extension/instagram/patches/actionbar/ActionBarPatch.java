@@ -24,6 +24,7 @@ import app.morphe.extension.instagram.constants.UI;
 import app.morphe.extension.instagram.entity.ProfileInfo;
 import app.morphe.extension.instagram.patches.userprofile.ProfileMoreOption;
 import app.morphe.extension.instagram.patches.dm.SavedMessagesHook;
+import app.morphe.extension.instagram.patches.watchHistory.WatchHistoryHook;
 import app.morphe.extension.instagram.entity.UserData;
 import app.morphe.extension.instagram.constants.Constants;
 
@@ -84,6 +85,12 @@ public class ActionBarPatch {
 
             if(pref.contains(Constants.AB_SETTINGS_ICON)) {
                 UI.pikoSettingsGear(viewGroup);
+            }
+
+            if(Pref.watchHistory()) {
+                Context context = viewGroup.getContext();
+                UI.addImageViewToViewGroup(viewGroup, UI.DRAWABLE_HISTORY_ICON,
+                        () -> WatchHistoryHook.openWatchHistory(context));
             }
 
         } catch (Exception e) {

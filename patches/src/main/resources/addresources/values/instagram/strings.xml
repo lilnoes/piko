@@ -363,4 +363,18 @@
     <string name="piko_media_like">like</string>
     <string name="piko_media_link">link</string>
     <string name="piko_media_activity">activity</string>
+
+    <string name="piko_watch_history">Watch history</string>
+    <string name="piko_watch_history_desc">Records posts and Reels as you view them. Adds a history button on the home feed.</string>
+    <string name="piko_view_watch_history">View watch history</string>
+    <string name="piko_watch_history_title">Watch history</string>
+    <string name="piko_watch_history_all">All</string>
+    <string name="piko_watch_history_posts">Posts</string>
+    <string name="piko_watch_history_reels">Reels</string>
+    <string name="piko_watch_history_search">Search users, captions, hashtags, titles</string>
+    <string name="piko_watch_history_empty">Nothing watched yet.\nOpen posts and Reels and they will show up here.</string>
+    <string name="piko_watch_history_no_results">No matches</string>
+    <string name="piko_watch_history_clear_confirm">Clear ALL watch history?</string>
+    <string name="piko_watch_history_post">post</string>
+    <string name="piko_watch_history_reel">reel</string>
 </resources>

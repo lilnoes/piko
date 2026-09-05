@@ -27,6 +27,7 @@ import app.morphe.extension.instagram.constants.UI;
 import app.morphe.extension.instagram.constants.Constants;
 import app.morphe.extension.instagram.utils.InstaUtils;
 import app.morphe.extension.instagram.patches.dm.SavedMessagesHook;
+import app.morphe.extension.instagram.patches.watchHistory.WatchHistoryHook;
 
 public class ButtonPref extends Preference {
     private final Context context;
@@ -84,6 +85,9 @@ public class ButtonPref extends Preference {
 
                     } else if (key.equals("view_deleted_messages")) {
                         SavedMessagesHook.openDeletedMessages(context, false);
+
+                    } else if (key.equals("view_watch_history")) {
+                        WatchHistoryHook.openWatchHistory(context);
 
                     } else if (isFragmentNavigation(key)) {
                         FragmentHook.startFragment(key);

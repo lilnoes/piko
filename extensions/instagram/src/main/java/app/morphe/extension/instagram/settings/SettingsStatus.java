@@ -202,7 +202,9 @@ public class SettingsStatus {
     public static void moreOptionsOnPost() { moreOptionsOnPost = true; }
     public static boolean moreOptionsOnProfile = false;
     public static void moreOptionsOnProfile() { moreOptionsOnProfile = true; }
-    public static boolean miscSection() {return ( saveMediaCommentButton || moreOptionsOnProfile || moreOptionsOnPost || customiseStoryRingSize || changeLikeAnimation || unlockPlusBenefits || storiesAudioAutoplay || disableVideoAutoplay || removeEmptyBottomSpace || copyCommentButton || improveImageViewing || customiseStoryTimestamp || disableAnalytics || disableDiscoverPeople || followBackIndicator || viewStoryMentions || disableStoryFlipping || loopStory || hideReshareButton);}
+    public static boolean watchHistory = false;
+    public static void watchHistory() { watchHistory = true; }
+    public static boolean miscSection() {return ( saveMediaCommentButton || moreOptionsOnProfile || moreOptionsOnPost || watchHistory || customiseStoryRingSize || changeLikeAnimation || unlockPlusBenefits || storiesAudioAutoplay || disableVideoAutoplay || removeEmptyBottomSpace || copyCommentButton || improveImageViewing || customiseStoryTimestamp || disableAnalytics || disableDiscoverPeople || followBackIndicator || viewStoryMentions || disableStoryFlipping || loopStory || hideReshareButton);}
 
     //DM section
     public static boolean unlimitedReplaysOnEphemeralMedia = false;
@@ -240,6 +242,7 @@ public class SettingsStatus {
         FLAGS.put(str("piko_download_with_external_downloader"),SettingsStatus.downloadWithExternalDownloader);
         FLAGS.put(str("piko_more_profile_options"),SettingsStatus.moreOptionsOnProfile);
         FLAGS.put(str("piko_enable_more_options_on_post"),SettingsStatus.moreOptionsOnPost);
+        FLAGS.put(str("piko_watch_history"),SettingsStatus.watchHistory);
         FLAGS.put(str("piko_stories_audio_autoplay"),SettingsStatus.storiesAudioAutoplay);
 
         FLAGS.put(str("piko_disable_video_autoplay"),SettingsStatus.disableVideoAutoplay);

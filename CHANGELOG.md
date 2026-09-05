@@ -1,3 +1,10 @@
+## [3.10.1-dev.3](https://github.com/lilnoes/piko/compare/v3.10.1-dev.2...v3.10.1-dev.3) (2026-09-05)
+
+### 🐛 Bug Fixes
+
+* Trigger next Morphe pre-release build ([c6cad5c](https://github.com/lilnoes/piko/commit/c6cad5cc76bc1b63d732ae114ce9e5204783e3d3))
+* watch history ([911cb56](https://github.com/lilnoes/piko/commit/911cb56e57e47d344e404b4680a89841ccf0adbe))
+
 ## [3.10.1-dev.2](https://github.com/lilnoes/piko/compare/v3.10.1-dev.1...v3.10.1-dev.2) (2026-09-05)
 
 ### 🐛 Bug Fixes

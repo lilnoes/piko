@@ -1,3 +1,9 @@
+## [3.10.1-dev.1](https://github.com/lilnoes/piko/compare/v3.10.0...v3.10.1-dev.1) (2026-09-05)
+
+### 🐛 Bug Fixes
+
+* Align fork releases with the Morphe patches template ([6782f93](https://github.com/lilnoes/piko/commit/6782f938313f61d5c929a34beffbce3e198f9636))
+
 ## [3.10.0](https://github.com/lilnoes/piko/compare/v3.9.0...v3.10.0) (2026-09-05)
 
 ### ✨ New Features

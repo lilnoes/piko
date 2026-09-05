@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-09-05T23:25:41",
-  "description": "## [3.10.1-dev.5](https://github.com/lilnoes/piko/compare/v3.10.1-dev.4...v3.10.1-dev.5) (2026-09-05)\n\n### 🐛 Bug Fixes\n\n* watch history ([f488293](https://github.com/lilnoes/piko/commit/f488293c65a9c5c02f9bb3d41f6a87e1c8ca6c6a))",
-  "download_url": "https://github.com/lilnoes/piko/releases/download/v3.10.1-dev.5/patches-3.10.1-dev.5.mpp",
+  "created_at": "2026-09-05T23:45:42",
+  "description": "## [3.10.1-dev.6](https://github.com/lilnoes/piko/compare/v3.10.1-dev.5...v3.10.1-dev.6) (2026-09-05)\n\n### 🐛 Bug Fixes\n\n* use covers for history list ([a1138c4](https://github.com/lilnoes/piko/commit/a1138c46d78750cf91170526fff24cd70e4e6df7))",
+  "download_url": "https://github.com/lilnoes/piko/releases/download/v3.10.1-dev.6/patches-3.10.1-dev.6.mpp",
   "signature_download_url": "",
-  "version": "3.10.1-dev.5"
+  "version": "3.10.1-dev.6"
 }

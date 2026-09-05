@@ -1,3 +1,9 @@
+## [3.10.1-dev.6](https://github.com/lilnoes/piko/compare/v3.10.1-dev.5...v3.10.1-dev.6) (2026-09-05)
+
+### 🐛 Bug Fixes
+
+* use covers for history list ([a1138c4](https://github.com/lilnoes/piko/commit/a1138c46d78750cf91170526fff24cd70e4e6df7))
+
 ## [3.10.1-dev.5](https://github.com/lilnoes/piko/compare/v3.10.1-dev.4...v3.10.1-dev.5) (2026-09-05)
 
 ### 🐛 Bug Fixes

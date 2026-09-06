@@ -1,3 +1,9 @@
+## [3.10.1-dev.7](https://github.com/lilnoes/piko/compare/v3.10.1-dev.6...v3.10.1-dev.7) (2026-09-06)
+
+### 🐛 Bug Fixes
+
+* fix crash ([42c756a](https://github.com/lilnoes/piko/commit/42c756adb72012d06c68a613c626444eff860135))
+
 ## [3.10.1-dev.6](https://github.com/lilnoes/piko/compare/v3.10.1-dev.5...v3.10.1-dev.6) (2026-09-05)
 
 ### 🐛 Bug Fixes

@@ -300,35 +300,32 @@ public class WatchHistoryActivity extends Activity {
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
             FrameLayout cell;
-            ImageView cover;
-            TextView play;
-            TextView userView;
+            Cell holder;
 
             if (convertView == null) {
                 cell = new SquareCell(WatchHistoryActivity.this);
                 cell.setBackgroundColor(0xFF1A1A1A);
+                holder = new Cell();
 
-                cover = new ImageView(WatchHistoryActivity.this);
-                cover.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                cover.setTag("cover");
-                cell.addView(cover, new FrameLayout.LayoutParams(
+                holder.cover = new ImageView(WatchHistoryActivity.this);
+                holder.cover.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                cell.addView(holder.cover, new FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
                 ));
 
-                play = new TextView(WatchHistoryActivity.this);
-                play.setText("▶");
-                play.setTextColor(Color.WHITE);
-                play.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-                play.setShadowLayer(4, 0, 0, Color.BLACK);
-                play.setTag("play");
+                holder.play = new TextView(WatchHistoryActivity.this);
+                holder.play.setText("▶");
+                holder.play.setTextColor(Color.WHITE);
+                holder.play.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+                holder.play.setShadowLayer(4, 0, 0, Color.BLACK);
                 FrameLayout.LayoutParams playParams = new FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.WRAP_CONTENT,
                     FrameLayout.LayoutParams.WRAP_CONTENT
                 );
                 playParams.gravity = Gravity.TOP | Gravity.END;
                 playParams.setMargins(0, Dim.dp8, Dim.dp8, 0);
-                cell.addView(play, playParams);
+                cell.addView(holder.play, playParams);
 
                 View fade = new View(WatchHistoryActivity.this);
                 GradientDrawable gradient = new GradientDrawable(
@@ -343,35 +340,45 @@ public class WatchHistoryActivity extends Activity {
                 fadeParams.gravity = Gravity.BOTTOM;
                 cell.addView(fade, fadeParams);
 
-                userView = new TextView(WatchHistoryActivity.this);
-                userView.setTextColor(Color.WHITE);
-                userView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
-                userView.setMaxLines(1);
-                userView.setTag("u");
+                holder.user = new TextView(WatchHistoryActivity.this);
+                holder.user.setTextColor(Color.WHITE);
+                holder.user.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+                holder.user.setMaxLines(1);
                 FrameLayout.LayoutParams userParams = new FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.WRAP_CONTENT
                 );
                 userParams.gravity = Gravity.BOTTOM;
                 userParams.setMargins(Dim.dp8, 0, Dim.dp8, Dim.dp8 / 2);
-                cell.addView(userView, userParams);
+                cell.addView(holder.user, userParams);
+
+                cell.setTag(holder);
             } else {
                 cell = (FrameLayout) convertView;
-                cover = cell.findViewWithTag("cover");
-                play = cell.findViewWithTag("play");
-                userView = cell.findViewWithTag("u");
+                holder = (Cell) cell.getTag();
             }
 
             PikoWatchHistoryDb.Entry entry = entries.get(position);
             boolean reel = PikoWatchHistoryDb.TYPE_REEL.equals(entry.type);
-            play.setVisibility(reel ? View.VISIBLE : View.GONE);
+            holder.play.setVisibility(reel ? View.VISIBLE : View.GONE);
             String user = entry.username != null && !entry.username.isEmpty()
                 ? entry.username
                 : str("piko_unknown");
-            userView.setText(user);
-            WatchHistoryThumbs.bind(cover, entry.coverUrl);
+            holder.user.setText(user);
+            WatchHistoryThumbs.bind(holder, entry.coverUrl);
             return cell;
         }
+    }
+
+    /**
+     * Child references for a recycled grid cell. The thumbnail loader tracks its pending URL
+     * here rather than on the ImageView's tag, which is a single slot the adapter also needs.
+     */
+    static final class Cell {
+        ImageView cover;
+        TextView play;
+        TextView user;
+        String pendingUrl;
     }
 
     private static final class SquareCell extends FrameLayout {

@@ -297,7 +297,7 @@ public class WatchHistoryHook {
             PERSISTED.incrementAndGet();
             lastSkip = "";
             WatchHistoryDebug.log(siteName + " stored " + type + " " + mediaId + " @" + username
-                + " product=" + postType);
+                + " product=" + postType + " raw=" + mediaData.describePostType());
         } catch (Exception e) {
             skip(siteName, null, "error: " + e);
             Logger.printException(() -> "WatchHistoryHook.persist", e);

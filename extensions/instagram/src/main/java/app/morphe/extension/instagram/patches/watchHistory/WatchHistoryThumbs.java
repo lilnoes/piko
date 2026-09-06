@@ -32,9 +32,11 @@ final class WatchHistoryThumbs {
 
     private WatchHistoryThumbs() {}
 
-    static void bind(ImageView view, String url) {
+    static void bind(WatchHistoryActivity.Cell cell, String url) {
+        if (cell == null || cell.cover == null) return;
+        ImageView view = cell.cover;
         view.setImageBitmap(null);
-        view.setTag(url);
+        cell.pendingUrl = url;
         if (url == null || url.isEmpty()) return;
         Bitmap cached = CACHE.get(url);
         if (cached != null) {
@@ -46,7 +48,7 @@ final class WatchHistoryThumbs {
             if (bitmap == null) return;
             CACHE.put(url, bitmap);
             MAIN.post(() -> {
-                if (url.equals(view.getTag())) view.setImageBitmap(bitmap);
+                if (url.equals(cell.pendingUrl)) view.setImageBitmap(bitmap);
             });
         });
     }

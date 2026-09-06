@@ -103,6 +103,21 @@ public class MediaData extends Entity {
         return value == null ? "" : String.valueOf(value);
     }
 
+    /**
+     * Diagnostic view of the product type. An absent value and a failed field read both collapse
+     * to {@link PostType#POST} in {@link #getPostType()}, so callers that need to tell those
+     * apart report this instead.
+     */
+    public String describePostType() {
+        try {
+            String key = this.getPostTypeKey();
+            if (!key.isEmpty()) return key;
+            return "empty on " + this.getMoreExtendedData().getClass().getName();
+        } catch (Exception e) {
+            return "unreadable: " + e;
+        }
+    }
+
     private List<MediaData> getCarouselMediaData() throws Exception {
         List<MediaData> carouselMediaData = new ArrayList<>();
         List<Object> mediaList = this.getMediaList();

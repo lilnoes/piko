@@ -82,27 +82,40 @@ public class MediaData extends Entity {
     }
 
     public PostType getPostType() {
-        try{
+        try {
             String postType = this.getPostTypeKey().toLowerCase();
-            //TODO: for some reason clips are not recogonised.
-            // Need to fix it later.
-            if(postType.equals("clips")){
+            if (postType.contains("clip") || postType.contains("reel") || postType.equals("igtv")) {
                 return PostType.REEL;
             }
-            if(postType.equals("story")){
+            if (postType.contains("story")) {
                 return PostType.STORY;
             }
-            if(postType.contains("carousel")){
+            if (postType.contains("carousel")) {
                 return PostType.CAROUSEL;
             }
         } catch (Exception e) {
-
         }
         return PostType.POST;
     }
 
     private String getPostTypeKey() throws Exception {
-        return (String) super.getField(this.getMoreExtendedData(), "A7Q");
+        Object value = super.getField(this.getMoreExtendedData(), "A7Q");
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    /**
+     * Diagnostic view of the product type. An absent value and a failed field read both collapse
+     * to {@link PostType#POST} in {@link #getPostType()}, so callers that need to tell those
+     * apart report this instead.
+     */
+    public String describePostType() {
+        try {
+            String key = this.getPostTypeKey();
+            if (!key.isEmpty()) return key;
+            return "empty on " + this.getMoreExtendedData().getClass().getName();
+        } catch (Exception e) {
+            return "unreadable: " + e;
+        }
     }
 
     private List<MediaData> getCarouselMediaData() throws Exception {
@@ -271,6 +284,32 @@ public class MediaData extends Entity {
             return imageDataList.get(0).getUrl();
         }
         return null;
+    }
+
+    /** Cover / thumbnail URL. Videos still have image_versions2; pick a mid-size variant. */
+    public String getCoverUrl() {
+        try {
+            List<ImageData> variants = this.getImageVariants();
+            if (variants == null || variants.isEmpty()) return null;
+            ImageData best = null;
+            int bestWidth = Integer.MAX_VALUE;
+            for (ImageData variant : variants) {
+                int width;
+                try {
+                    width = variant.getWidth();
+                } catch (Exception e) {
+                    width = 0;
+                }
+                if (width >= 240 && width < bestWidth) {
+                    best = variant;
+                    bestWidth = width;
+                }
+            }
+            if (best == null) best = variants.get(0);
+            return best.getUrl();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
 

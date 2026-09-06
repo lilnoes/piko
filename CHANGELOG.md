@@ -1,3 +1,54 @@
+## [3.10.1-dev.8](https://github.com/lilnoes/piko/compare/v3.10.1-dev.7...v3.10.1-dev.8) (2026-09-06)
+
+### 🐛 Bug Fixes
+
+* watch history ([853fb94](https://github.com/lilnoes/piko/commit/853fb94e1caa30c84c1616a6a11f15dd7061703c))
+
+## [3.10.1-dev.7](https://github.com/lilnoes/piko/compare/v3.10.1-dev.6...v3.10.1-dev.7) (2026-09-06)
+
+### 🐛 Bug Fixes
+
+* fix crash ([42c756a](https://github.com/lilnoes/piko/commit/42c756adb72012d06c68a613c626444eff860135))
+
+## [3.10.1-dev.6](https://github.com/lilnoes/piko/compare/v3.10.1-dev.5...v3.10.1-dev.6) (2026-09-05)
+
+### 🐛 Bug Fixes
+
+* use covers for history list ([a1138c4](https://github.com/lilnoes/piko/commit/a1138c46d78750cf91170526fff24cd70e4e6df7))
+
+## [3.10.1-dev.5](https://github.com/lilnoes/piko/compare/v3.10.1-dev.4...v3.10.1-dev.5) (2026-09-05)
+
+### 🐛 Bug Fixes
+
+* watch history ([f488293](https://github.com/lilnoes/piko/commit/f488293c65a9c5c02f9bb3d41f6a87e1c8ca6c6a))
+
+## [3.10.1-dev.4](https://github.com/lilnoes/piko/compare/v3.10.1-dev.3...v3.10.1-dev.4) (2026-09-05)
+
+### 🐛 Bug Fixes
+
+* watch history ([dcd4a9e](https://github.com/lilnoes/piko/commit/dcd4a9ebfdd148d097da665a7bca998947c380f0))
+
+## [3.10.1-dev.3](https://github.com/lilnoes/piko/compare/v3.10.1-dev.2...v3.10.1-dev.3) (2026-09-05)
+
+### 🐛 Bug Fixes
+
+* Trigger next Morphe pre-release build ([c6cad5c](https://github.com/lilnoes/piko/commit/c6cad5cc76bc1b63d732ae114ce9e5204783e3d3))
+* watch history ([911cb56](https://github.com/lilnoes/piko/commit/911cb56e57e47d344e404b4680a89841ccf0adbe))
+
+## [3.10.1-dev.2](https://github.com/lilnoes/piko/compare/v3.10.1-dev.1...v3.10.1-dev.2) (2026-09-05)
+
+### 🐛 Bug Fixes
+
+* Document watch-history hook class for pre-release builds ([1967b77](https://github.com/lilnoes/piko/commit/1967b777f659b0f24e1dc26905cefad840e07e4e))
+* watch history ([911cb56](https://github.com/lilnoes/piko/commit/911cb56e57e47d344e404b4680a89841ccf0adbe))
+
+## [3.10.1-dev.1](https://github.com/lilnoes/piko/compare/v3.10.0...v3.10.1-dev.1) (2026-09-05)
+
+### 🐛 Bug Fixes
+
+* Align fork releases with the Morphe patches template ([6782f93](https://github.com/lilnoes/piko/commit/6782f938313f61d5c929a34beffbce3e198f9636))
+* Document watch-history hook class for pre-release builds ([1967b77](https://github.com/lilnoes/piko/commit/1967b777f659b0f24e1dc26905cefad840e07e4e))
+
 ## [3.10.0](https://github.com/lilnoes/piko/compare/v3.9.0...v3.10.0) (2026-09-05)
 
 ### ✨ New Features

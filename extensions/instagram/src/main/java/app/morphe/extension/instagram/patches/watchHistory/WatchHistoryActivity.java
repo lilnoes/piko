@@ -9,23 +9,28 @@ package app.morphe.extension.instagram.patches.watchHistory;
 import static app.morphe.extension.instagram.utils.IgStr.str;
 
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.text.format.DateFormat;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ListView;
+import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import app.morphe.extension.crimera.PikoUtils;
@@ -43,7 +48,7 @@ public class WatchHistoryActivity extends Activity {
     private final List<PikoWatchHistoryDb.Entry> entries = new ArrayList<>();
     private HistoryAdapter adapter;
     private LinearLayout root;
-    private ListView listView;
+    private GridView gridView;
     private TextView emptyView;
     private EditText searchBox;
     private TextView allTab;
@@ -70,14 +75,17 @@ public class WatchHistoryActivity extends Activity {
         emptyView.setPadding(Dim.dp8 * 2, Dim.dp8 * 4, Dim.dp8 * 2, Dim.dp8 * 4);
         emptyView.setTextColor(InstagramPreferenceStyle.secondaryTextColor());
 
-        listView = new ListView(this);
+        gridView = new GridView(this);
         adapter = new HistoryAdapter();
-        listView.setAdapter(adapter);
-        listView.setBackgroundColor(InstagramPreferenceStyle.backgroundColor());
-        listView.setDivider(new android.graphics.drawable.ColorDrawable(
-            UI.getThemedColour("igds_color_separator")));
-        listView.setDividerHeight(1);
-        listView.setOnItemClickListener((parent, view, pos, id) -> {
+        gridView.setAdapter(adapter);
+        gridView.setNumColumns(3);
+        gridView.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
+        gridView.setHorizontalSpacing(2);
+        gridView.setVerticalSpacing(2);
+        gridView.setPadding(0, 0, 0, 0);
+        gridView.setBackgroundColor(InstagramPreferenceStyle.backgroundColor());
+        gridView.setSelector(android.R.color.transparent);
+        gridView.setOnItemClickListener((parent, view, pos, id) -> {
             PikoWatchHistoryDb.Entry entry = entries.get(pos);
             if (entry.permalink != null && !entry.permalink.isEmpty()) {
                 PikoUtils.openUrl(entry.permalink, true);
@@ -89,7 +97,7 @@ public class WatchHistoryActivity extends Activity {
             LinearLayout.LayoutParams.MATCH_PARENT,
             1
         );
-        root.addView(listView, fill);
+        root.addView(gridView, fill);
         root.addView(emptyView, fill);
         emptyView.setVisibility(View.GONE);
 
@@ -127,16 +135,11 @@ public class WatchHistoryActivity extends Activity {
         titleParams.leftMargin = Dim.dp8 / 2;
         title.setLayoutParams(titleParams);
 
-        TextView clear = new TextView(this);
-        clear.setText(str("piko_clear"));
-        clear.setTextSize(TypedValue.COMPLEX_UNIT_PX, PikoUtils.spToPixels(16));
-        clear.setTextColor(InstagramPreferenceStyle.primaryTextColor());
-        clear.setPadding(Dim.dp8, Dim.dp8, Dim.dp8, Dim.dp8);
-        LinearLayout.LayoutParams clearParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        clearParams.gravity = Gravity.CENTER_VERTICAL;
-        clear.setLayoutParams(clearParams);
+        TextView debug = toolbarButton(str("piko_watch_history_debug"));
+        debug.setTextColor(InstagramPreferenceStyle.secondaryTextColor());
+        debug.setOnClickListener(v -> showDebugLog());
+
+        TextView clear = toolbarButton(str("piko_clear"));
         clear.setOnClickListener(v -> new android.app.AlertDialog.Builder(InstagramPreferenceStyle.dialogContext(this))
             .setMessage(str("piko_watch_history_clear_confirm"))
             .setPositiveButton(str("piko_clear"), (d, w) -> {
@@ -148,8 +151,52 @@ public class WatchHistoryActivity extends Activity {
 
         toolbar.addView(back);
         toolbar.addView(title);
+        toolbar.addView(debug);
         toolbar.addView(clear);
         return toolbar;
+    }
+
+    private TextView toolbarButton(String label) {
+        TextView button = new TextView(this);
+        button.setText(label);
+        button.setTextSize(TypedValue.COMPLEX_UNIT_PX, PikoUtils.spToPixels(16));
+        button.setTextColor(InstagramPreferenceStyle.primaryTextColor());
+        button.setPadding(Dim.dp8, Dim.dp8, Dim.dp8, Dim.dp8);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.gravity = Gravity.CENTER_VERTICAL;
+        button.setLayoutParams(params);
+        return button;
+    }
+
+    private void showDebugLog() {
+        String log = WatchHistoryHook.debugLog();
+
+        TextView text = new TextView(this);
+        text.setText(log);
+        text.setTextIsSelectable(true);
+        text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        text.setTypeface(android.graphics.Typeface.MONOSPACE);
+        text.setTextColor(InstagramPreferenceStyle.primaryTextColor());
+        text.setPadding(Dim.dp8 * 2, Dim.dp8 * 2, Dim.dp8 * 2, Dim.dp8 * 2);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(text);
+
+        new android.app.AlertDialog.Builder(InstagramPreferenceStyle.dialogContext(this))
+            .setTitle(str("piko_watch_history_debug_title"))
+            .setView(scroll)
+            .setPositiveButton(str("piko_copy"), (d, w) -> {
+                ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                if (clipboard != null) {
+                    clipboard.setPrimaryClip(ClipData.newPlainText("piko watch history", log));
+                    Toast.makeText(this, str("piko_copied"), Toast.LENGTH_SHORT).show();
+                }
+            })
+            .setNegativeButton(str("piko_clear"), (d, w) -> WatchHistoryHook.clearDebugLog())
+            .setNeutralButton(str("piko_cancel"), null)
+            .show();
     }
 
     private EditText buildSearch() {
@@ -233,13 +280,15 @@ public class WatchHistoryActivity extends Activity {
         adapter.notifyDataSetChanged();
 
         boolean empty = entries.isEmpty();
-        listView.setVisibility(empty ? View.GONE : View.VISIBLE);
+        gridView.setVisibility(empty ? View.GONE : View.VISIBLE);
         emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
         if (empty) {
             boolean hasQuery = search != null && !search.trim().isEmpty();
-            emptyView.setText(hasQuery
-                ? str("piko_watch_history_no_results")
-                : str("piko_watch_history_empty"));
+            if (hasQuery) {
+                emptyView.setText(str("piko_watch_history_no_results"));
+            } else {
+                emptyView.setText(str("piko_watch_history_empty") + "\n\n" + WatchHistoryHook.captureStatus());
+            }
         }
     }
 
@@ -250,74 +299,96 @@ public class WatchHistoryActivity extends Activity {
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
-            LinearLayout row;
-            TextView userView, titleView, captionView, metaView;
+            FrameLayout cell;
+            Cell holder;
 
             if (convertView == null) {
-                row = new LinearLayout(WatchHistoryActivity.this);
-                row.setOrientation(LinearLayout.VERTICAL);
-                int pad = Dim.dp8;
-                row.setPadding(pad * 2, pad, pad * 2, pad);
+                cell = new SquareCell(WatchHistoryActivity.this);
+                cell.setBackgroundColor(0xFF1A1A1A);
+                holder = new Cell();
 
-                userView = new TextView(WatchHistoryActivity.this);
-                userView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-                userView.setTextColor(InstagramPreferenceStyle.secondaryTextColor());
-                userView.setTag("u");
+                holder.cover = new ImageView(WatchHistoryActivity.this);
+                holder.cover.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                cell.addView(holder.cover, new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                ));
 
-                titleView = new TextView(WatchHistoryActivity.this);
-                titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-                titleView.setTextColor(InstagramPreferenceStyle.primaryTextColor());
-                titleView.setTag("t");
+                holder.play = new TextView(WatchHistoryActivity.this);
+                holder.play.setText("▶");
+                holder.play.setTextColor(Color.WHITE);
+                holder.play.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+                holder.play.setShadowLayer(4, 0, 0, Color.BLACK);
+                FrameLayout.LayoutParams playParams = new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT
+                );
+                playParams.gravity = Gravity.TOP | Gravity.END;
+                playParams.setMargins(0, Dim.dp8, Dim.dp8, 0);
+                cell.addView(holder.play, playParams);
 
-                captionView = new TextView(WatchHistoryActivity.this);
-                captionView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-                captionView.setTextColor(InstagramPreferenceStyle.primaryTextColor());
-                captionView.setMaxLines(3);
-                captionView.setTag("c");
+                View fade = new View(WatchHistoryActivity.this);
+                GradientDrawable gradient = new GradientDrawable(
+                    GradientDrawable.Orientation.TOP_BOTTOM,
+                    new int[]{Color.TRANSPARENT, 0xCC000000}
+                );
+                fade.setBackground(gradient);
+                FrameLayout.LayoutParams fadeParams = new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    Dim.dp8 * 5
+                );
+                fadeParams.gravity = Gravity.BOTTOM;
+                cell.addView(fade, fadeParams);
 
-                metaView = new TextView(WatchHistoryActivity.this);
-                metaView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-                metaView.setTextColor(InstagramPreferenceStyle.secondaryTextColor());
-                metaView.setTag("m");
+                holder.user = new TextView(WatchHistoryActivity.this);
+                holder.user.setTextColor(Color.WHITE);
+                holder.user.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+                holder.user.setMaxLines(1);
+                FrameLayout.LayoutParams userParams = new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT
+                );
+                userParams.gravity = Gravity.BOTTOM;
+                userParams.setMargins(Dim.dp8, 0, Dim.dp8, Dim.dp8 / 2);
+                cell.addView(holder.user, userParams);
 
-                row.addView(userView);
-                row.addView(titleView);
-                row.addView(captionView);
-                row.addView(metaView);
+                cell.setTag(holder);
             } else {
-                row = (LinearLayout) convertView;
-                userView = row.findViewWithTag("u");
-                titleView = row.findViewWithTag("t");
-                captionView = row.findViewWithTag("c");
-                metaView = row.findViewWithTag("m");
+                cell = (FrameLayout) convertView;
+                holder = (Cell) cell.getTag();
             }
 
             PikoWatchHistoryDb.Entry entry = entries.get(position);
+            boolean reel = PikoWatchHistoryDb.TYPE_REEL.equals(entry.type);
+            holder.play.setVisibility(reel ? View.VISIBLE : View.GONE);
             String user = entry.username != null && !entry.username.isEmpty()
-                ? "@" + entry.username
+                ? entry.username
                 : str("piko_unknown");
-            String kind = PikoWatchHistoryDb.TYPE_REEL.equals(entry.type)
-                ? str("piko_watch_history_reel")
-                : str("piko_watch_history_post");
-            userView.setText(user + "  ·  " + kind);
+            holder.user.setText(user);
+            WatchHistoryThumbs.bind(holder, entry.coverUrl);
+            return cell;
+        }
+    }
 
-            boolean hasTitle = entry.title != null && !entry.title.isEmpty();
-            titleView.setVisibility(hasTitle ? View.VISIBLE : View.GONE);
-            if (hasTitle) titleView.setText(entry.title);
+    /**
+     * Child references for a recycled grid cell. The thumbnail loader tracks its pending URL
+     * here rather than on the ImageView's tag, which is a single slot the adapter also needs.
+     */
+    static final class Cell {
+        ImageView cover;
+        TextView play;
+        TextView user;
+        String pendingUrl;
+    }
 
-            boolean hasCaption = entry.caption != null && !entry.caption.isEmpty();
-            captionView.setVisibility(hasCaption ? View.VISIBLE : View.GONE);
-            if (hasCaption) captionView.setText(entry.caption);
+    private static final class SquareCell extends FrameLayout {
+        SquareCell(android.content.Context context) {
+            super(context);
+        }
 
-            StringBuilder meta = new StringBuilder();
-            if (entry.hashtags != null && !entry.hashtags.isEmpty()) {
-                meta.append(entry.hashtags);
-                meta.append("  ·  ");
-            }
-            meta.append(DateFormat.format("MMM dd, yyyy  HH:mm", new Date(entry.watchedAt)));
-            metaView.setText(meta.toString());
-
-            return row;
+        @Override
+        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+            super.onMeasure(widthMeasureSpec, widthMeasureSpec);
         }
     }
 }

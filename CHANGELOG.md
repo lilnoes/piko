@@ -1,3 +1,9 @@
+## [3.10.1-dev.8](https://github.com/lilnoes/piko/compare/v3.10.1-dev.7...v3.10.1-dev.8) (2026-09-06)
+
+### 🐛 Bug Fixes
+
+* watch history ([853fb94](https://github.com/lilnoes/piko/commit/853fb94e1caa30c84c1616a6a11f15dd7061703c))
+
 ## [3.10.1-dev.7](https://github.com/lilnoes/piko/compare/v3.10.1-dev.6...v3.10.1-dev.7) (2026-09-06)
 
 ### 🐛 Bug Fixes

@@ -47,6 +47,17 @@ public class WatchHistoryHook {
     private static final int[] SITE_NULLS = new int[SITES.length];
     private static final Object[] SITE_LAST = new Object[SITES.length];
 
+    /**
+     * Diagnostic probes. Every anchor above that was meant to represent playback reported zero
+     * calls on 439, so the patch spreads these across the autoplay classes and the debug log
+     * reports which ones fire. Probes never write history; they only count and identify.
+     */
+    static final int PROBE_COUNT = 12;
+    private static final int PROBE_LOG_LIMIT = 6;
+    private static final int[] PROBE_CALLS = new int[PROBE_COUNT];
+    private static final int[] PROBE_LOGGED = new int[PROBE_COUNT];
+    private static final Object[] PROBE_LAST = new Object[PROBE_COUNT];
+
     /** Cross-site identity gate: the same media object reaches several anchors per scroll. */
     private static final Object[] SEEN = new Object[16];
     private static int seenIndex;
@@ -81,6 +92,67 @@ public class WatchHistoryHook {
     /** Rewritten at patch time with the anchors that injected. */
     public static String injectionReport() {
         return "injection-report";
+    }
+
+    /** Rewritten at patch time with the method each probe index landed on. */
+    public static String probeReport() {
+        return "probe-report";
+    }
+
+    public static void onProbe0(Object media) { probe(media, 0); }
+
+    public static void onProbe1(Object media) { probe(media, 1); }
+
+    public static void onProbe2(Object media) { probe(media, 2); }
+
+    public static void onProbe3(Object media) { probe(media, 3); }
+
+    public static void onProbe4(Object media) { probe(media, 4); }
+
+    public static void onProbe5(Object media) { probe(media, 5); }
+
+    public static void onProbe6(Object media) { probe(media, 6); }
+
+    public static void onProbe7(Object media) { probe(media, 7); }
+
+    public static void onProbe8(Object media) { probe(media, 8); }
+
+    public static void onProbe9(Object media) { probe(media, 9); }
+
+    public static void onProbe10(Object media) { probe(media, 10); }
+
+    public static void onProbe11(Object media) { probe(media, 11); }
+
+    /**
+     * Counts every call, and describes the first few distinct media per probe so the log can be
+     * correlated against what was actually on screen at that moment.
+     */
+    private static void probe(final Object media, final int index) {
+        try {
+            PROBE_CALLS[index]++;
+            if (media == null || media == PROBE_LAST[index]) return;
+            PROBE_LAST[index] = media;
+            if (PROBE_LOGGED[index] >= PROBE_LOG_LIMIT) return;
+            PROBE_LOGGED[index]++;
+            getWorker().post(() -> describeProbe(media, index));
+        } catch (Exception ignored) {}
+    }
+
+    private static void describeProbe(Object media, int index) {
+        String description;
+        try {
+            MediaData mediaData = new MediaData(media);
+            String username = "";
+            try {
+                UserData userData = mediaData.getUserData();
+                if (userData != null && userData.getUsername() != null) username = userData.getUsername();
+            } catch (Exception ignored) {}
+            description = mediaData.getPostID() + " @" + username + " raw=" + mediaData.describePostType();
+        } catch (Exception e) {
+            description = "unreadable: " + e;
+        }
+        WatchHistoryDebug.log("probe" + index + " saw " + description);
+        WatchHistoryDebug.flush();
     }
 
     public static void onAutoplayState(Object media) {
@@ -169,9 +241,19 @@ public class WatchHistoryHook {
             if (SITE_NULLS[i] > 0) builder.append(" (").append(SITE_NULLS[i]).append(" null)");
         }
         if (!any) builder.append("no hook has fired this session");
-        builder.append("\nstored ").append(PERSISTED.get());
+        builder.append("\nwatched ").append(PERSISTED.get());
         String skip = lastSkip;
         if (skip != null && !skip.isEmpty()) builder.append(", last skip: ").append(skip);
+
+        builder.append('\n').append(probeReport()).append('\n');
+        boolean anyProbe = false;
+        for (int i = 0; i < PROBE_COUNT; i++) {
+            if (PROBE_CALLS[i] == 0) continue;
+            if (anyProbe) builder.append(", ");
+            anyProbe = true;
+            builder.append("probe").append(i).append(' ').append(PROBE_CALLS[i]);
+        }
+        if (!anyProbe) builder.append("no probe has fired this session");
         return builder.toString();
     }
 
@@ -193,13 +275,15 @@ public class WatchHistoryHook {
         lastSkip = reason;
     }
 
+    /**
+     * Only anchors that mean "this media played" may stamp a watch. Every binder and state
+     * factory is prefetch-time: clipsState fires for the reel on screen and the next few queued
+     * behind it in the same instant, so treating it as a watch fills the list with unseen media.
+     */
     private static boolean isWatchSite(int site) {
-        // autoplayState, autoplayHistory, reelBind, clipsState — real playback / Reels viewer
-        return site == 0 || site == 1 || site == 5 || site == 8;
-    }
-
-    private static boolean isReelSite(int site) {
-        return site == 5 || site == 8;
+        // autoplayState, autoplayHistory. Neither has been observed firing yet; until a probe
+        // identifies a real playback method, nothing is promoted to watched.
+        return site == 0 || site == 1;
     }
 
     private static void persist(Object mediaObject, int site) {
@@ -242,7 +326,7 @@ public class WatchHistoryHook {
                 skipQuiet("story");
                 return;
             }
-            boolean reel = postType == PostType.REEL || isReelSite(site);
+            boolean reel = postType == PostType.REEL;
             String type = reel ? PikoWatchHistoryDb.TYPE_REEL : PikoWatchHistoryDb.TYPE_POST;
 
             String username = "";
@@ -292,12 +376,13 @@ public class WatchHistoryHook {
             entry.permalink = permalink;
             entry.coverUrl = coverUrl;
             entry.watchedAt = now;
-            PikoWatchHistoryDb.getInstance(ctx).upsert(entry, isWatchSite(site));
+            boolean watched = isWatchSite(site);
+            PikoWatchHistoryDb.getInstance(ctx).upsert(entry, watched);
 
-            PERSISTED.incrementAndGet();
+            if (watched) PERSISTED.incrementAndGet();
             lastSkip = "";
-            WatchHistoryDebug.log(siteName + " stored " + type + " " + mediaId + " @" + username
-                + " product=" + postType + " raw=" + mediaData.describePostType());
+            WatchHistoryDebug.log(siteName + (watched ? " watched " : " seen ") + type + " " + mediaId
+                + " @" + username + " product=" + postType + " raw=" + mediaData.describePostType());
         } catch (Exception e) {
             skip(siteName, null, "error: " + e);
             Logger.printException(() -> "WatchHistoryHook.persist", e);

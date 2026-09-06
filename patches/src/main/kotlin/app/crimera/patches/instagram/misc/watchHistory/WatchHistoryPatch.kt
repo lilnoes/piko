@@ -131,6 +131,15 @@ private object InjectionReportExtensionFingerprint : Fingerprint(
     name = "injectionReport",
 )
 
+/** Placeholder in the extension, rewritten with the method behind each probe index. */
+private object ProbeReportExtensionFingerprint : Fingerprint(
+    definingClass = HOOK_CLASS,
+    name = "probeReport",
+)
+
+/** Must match WatchHistoryHook.PROBE_COUNT. */
+private const val PROBE_COUNT = 12
+
 private fun Method.mediaParamIndex(): Int = paramTypes().indexOfFirst { it == MEDIA_CLASS_NAME }
 
 private fun CharSequence.registerWidth(): Int = if (this == "J" || this == "D") 2 else 1
@@ -273,12 +282,51 @@ val watchHistoryPatch =
                 throw PatchException("Watch history: no capture hooks injected (${report.joinToString()})")
             }
 
+            // Every anchor above that was supposed to mean "this played" reported zero calls on
+            // 439, leaving only prefetch-time binders. So each method in the autoplay classes
+            // that receives a Media gets a counted probe, and the on-device log names the ones
+            // that fire. Probes are diagnostics: they never write history, and they are excluded
+            // from `injected` so they cannot mask a failed anchor.
+            val probeTargets = mutableListOf<String>()
+            val probeClasses =
+                linkedSetOf(
+                    AUTOPLAY_PLAYBACK_STATE,
+                    AUTOPLAY_PLAYBACK_HISTORY,
+                    AUTOPLAY_SCREEN_ITEM,
+                ).also { classes ->
+                    runCatching { classes += AutoplayPlaybackStateFingerprint.method.definingClass }
+                }
+
+            for (classType in probeClasses) {
+                if (probeTargets.size >= PROBE_COUNT) break
+                val classDef = runCatching { mutableClassDefBy { it.type == classType } }.getOrNull() ?: continue
+                for (method in classDef.methods) {
+                    if (probeTargets.size >= PROBE_COUNT) break
+                    if (method.name == "<clinit>") continue
+                    if (method.implementation == null) continue
+                    if (method.mediaParamIndex() < 0) continue
+                    val index = probeTargets.size
+                    val simpleClass = classType.substringAfterLast('/').removeSuffix(";")
+                    if (runCatching { method.injectHook("onProbe$index") }.getOrDefault(false)) {
+                        probeTargets += "probe$index=$simpleClass.${method.name}"
+                    }
+                }
+            }
+            report += "probes=${probeTargets.size}"
+
             // Surface the result in the app; patch-time stdout is invisible in the manager.
             val summary = "$injected hooks: ${report.joinToString()}".replace(Regex("[^A-Za-z0-9=,:. -]"), "_")
             runCatching {
                 InjectionReportExtensionFingerprint.changeString("injection-report", summary)
             }
+            val probeSummary =
+                (if (probeTargets.isEmpty()) "no probes" else probeTargets.joinToString(", "))
+                    .replace(Regex("[^A-Za-z0-9=,:. -]"), "_")
+            runCatching {
+                ProbeReportExtensionFingerprint.changeString("probe-report", probeSummary)
+            }
             println("Watch history: $summary")
+            println("Watch history probes: $probeSummary")
 
             enableSettings("watchHistory")
             addFlags("mainFeedActionBarFlags")

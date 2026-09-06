@@ -4,6 +4,10 @@
 >
 > Updates are published **only when this patch breaks**, not on every upstream Piko or Instagram release.
 
+<p align="center">
+  <img src="docs/ss.jpeg" alt="Watch history example" width="320">
+</p>
+
 ---
 
 <div align="center">

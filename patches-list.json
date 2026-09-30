@@ -1,6 +1,6 @@
 {
   "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
-  "version": "3.11.0-dev.1",
+  "version": "3.11.0-dev.2",
   "patches": [
     {
       "name": "Add ability to copy media link",
@@ -995,7 +995,7 @@
     {
       "name": "Daily scroll limit",
       "description": "Sets a daily limit on minutes spent in the app. Once it is used up, scrolling is disabled until midnight while the rest of the app keeps working.",
-      "default": true,
+      "default": false,
       "dependencies": [
         "BytecodePatch"
       ],

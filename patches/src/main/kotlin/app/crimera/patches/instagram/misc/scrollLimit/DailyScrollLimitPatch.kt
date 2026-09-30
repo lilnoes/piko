@@ -6,6 +6,7 @@
 
 package app.crimera.patches.instagram.misc.scrollLimit
 
+import app.crimera.patches.instagram.misc.reels.disableReelsScrollingPatch
 import app.crimera.patches.instagram.misc.settings.IgFragmentActivityOnCreate
 import app.crimera.patches.instagram.misc.settings.settingsPatch
 import app.crimera.patches.instagram.utils.Constants.COMPATIBILITY_INSTAGRAM
@@ -22,10 +23,11 @@ private const val SCROLL_LIMIT_CLASS = "$PATCHES_DESCRIPTOR/scrollLimit/ScrollLi
 val dailyScrollLimitPatch =
     bytecodePatch(
         name = "Daily scroll limit",
-        description = "Sets a daily limit on minutes spent in the app. Once it is used up, scrolling is disabled until midnight while the rest of the app keeps working.",
+        description = "Sets a daily limit on minutes spent in the app. Once it is used up, Disable Reels scrolling is switched on and held on until midnight.",
         default = false,
     ) {
-        dependsOn(settingsPatch)
+        // Switching the preference on only has an effect if the Reels patch is applied.
+        dependsOn(settingsPatch, disableReelsScrollingPatch)
 
         compatibleWith(COMPATIBILITY_INSTAGRAM)
 

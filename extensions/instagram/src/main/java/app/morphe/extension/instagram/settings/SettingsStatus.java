@@ -136,7 +136,7 @@ public class SettingsStatus {
         disableDoubleTapLike = true;
     }
     public static boolean distractionFreeSection() {
-        return (disableDoubleTapLike || hideNotesTray || disableHighlights || disableStories || disableExplore || disableComments || hideStoriesTray || limitFollowingFeed || hideGroupCreationOnSharesheet || disableReelsScrolling || disableSwipeToCreate);
+        return (disableDoubleTapLike || hideNotesTray || disableHighlights || disableStories || disableExplore || disableComments || hideStoriesTray || limitFollowingFeed || hideGroupCreationOnSharesheet || disableReelsScrolling || dailyScrollLimit || disableSwipeToCreate);
     }
 
     //Misc section.
@@ -206,7 +206,7 @@ public class SettingsStatus {
     public static void watchHistory() { watchHistory = true; }
     public static boolean dailyScrollLimit = false;
     public static void dailyScrollLimit() { dailyScrollLimit = true; }
-    public static boolean miscSection() {return ( dailyScrollLimit || saveMediaCommentButton || moreOptionsOnProfile || moreOptionsOnPost || watchHistory || customiseStoryRingSize || changeLikeAnimation || unlockPlusBenefits || storiesAudioAutoplay || disableVideoAutoplay || removeEmptyBottomSpace || copyCommentButton || improveImageViewing || customiseStoryTimestamp || disableAnalytics || disableDiscoverPeople || followBackIndicator || viewStoryMentions || disableStoryFlipping || loopStory || hideReshareButton);}
+    public static boolean miscSection() {return ( saveMediaCommentButton || moreOptionsOnProfile || moreOptionsOnPost || watchHistory || customiseStoryRingSize || changeLikeAnimation || unlockPlusBenefits || storiesAudioAutoplay || disableVideoAutoplay || removeEmptyBottomSpace || copyCommentButton || improveImageViewing || customiseStoryTimestamp || disableAnalytics || disableDiscoverPeople || followBackIndicator || viewStoryMentions || disableStoryFlipping || loopStory || hideReshareButton);}
 
     //DM section
     public static boolean unlimitedReplaysOnEphemeralMedia = false;

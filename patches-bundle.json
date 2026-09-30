@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-09-30T02:30:43",
-  "description": "## [3.11.0-dev.2](https://github.com/lilnoes/piko/compare/v3.11.0-dev.1...v3.11.0-dev.2) (2026-09-30)\n\n### 🐛 Bug Fixes\n\n* remove forceful flag ([c2731e7](https://github.com/lilnoes/piko/commit/c2731e7290a54b3556c4503dab3baf4eaf7f26ea))",
-  "download_url": "https://github.com/lilnoes/piko/releases/download/v3.11.0-dev.2/patches-3.11.0-dev.2.mpp",
+  "created_at": "2026-09-30T02:47:58",
+  "description": "## [3.11.0](https://github.com/lilnoes/piko/compare/v3.10.0...v3.11.0) (2026-09-30)\n\n### 🐛 Bug Fixes\n\n* Align fork releases with the Morphe patches template ([6782f93](https://github.com/lilnoes/piko/commit/6782f938313f61d5c929a34beffbce3e198f9636))\n* Document watch-history hook class for pre-release builds ([1967b77](https://github.com/lilnoes/piko/commit/1967b777f659b0f24e1dc26905cefad840e07e4e))\n* fix crash ([42c756a](https://github.com/lilnoes/piko/commit/42c756adb72012d06c68a613c626444eff860135))\n* remove forceful flag ([c2731e7](https://github.com/lilnoes/piko/commit/c2731e7290a54b3556c4503dab3baf4eaf7f26ea))\n* Trigger next Morphe pre-release build ([c6cad5c](https://github.com/lilnoes/piko/commit/c6cad5cc76bc1b63d732ae114ce9e5204783e3d3))\n* use covers for history list ([a1138c4](https://github.com/lilnoes/piko/commit/a1138c46d78750cf91170526fff24cd70e4e6df7))\n* watch history ([853fb94](https://github.com/lilnoes/piko/commit/853fb94e1caa30c84c1616a6a11f15dd7061703c))\n* watch history ([f488293](https://github.com/lilnoes/piko/commit/f488293c65a9c5c02f9bb3d41f6a87e1c8ca6c6a))\n* watch history ([dcd4a9e](https://github.com/lilnoes/piko/commit/dcd4a9ebfdd148d097da665a7bca998947c380f0))\n* watch history ([911cb56](https://github.com/lilnoes/piko/commit/911cb56e57e47d344e404b4680a89841ccf0adbe))\n\n### ✨ New Features\n\n* add daily scroll limit ([c4fc2b5](https://github.com/lilnoes/piko/commit/c4fc2b51a3ae95721b18a513c78ce809c520d4e6))",
+  "download_url": "https://github.com/lilnoes/piko/releases/download/v3.11.0/patches-3.11.0.mpp",
   "signature_download_url": "",
-  "version": "3.11.0-dev.2"
+  "version": "3.11.0"
 }

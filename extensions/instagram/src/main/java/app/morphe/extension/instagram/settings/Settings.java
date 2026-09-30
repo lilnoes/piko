@@ -67,7 +67,7 @@ public class Settings {
     public static final StringSetting CUSTOMISE_STORY_RING_SIZE = new StringSetting("customise_story_ring_size", "100");
     public static final BooleanSetting ENABLE_MORE_OPTIONS_ON_POST = new BooleanSetting("enable_more_option_on_post", true);
     public static final BooleanSetting WATCH_HISTORY = new BooleanSetting("watch_history", true);
-    public static final StringSetting DAILY_SCROLL_LIMIT_MINUTES = new StringSetting("daily_scroll_limit_minutes", "1");
+    public static final StringSetting DAILY_SCROLL_LIMIT_MINUTES = new StringSetting("daily_scroll_limit_minutes", "0");
 
     public static final BooleanSetting DISABLE_DOUBLE_TAP_LIKE_POST = new BooleanSetting("disable_double_tap_like_post", false);
     public static final BooleanSetting DISABLE_DOUBLE_TAP_LIKE_REEL = new BooleanSetting("disable_double_tap_like_reel", false);

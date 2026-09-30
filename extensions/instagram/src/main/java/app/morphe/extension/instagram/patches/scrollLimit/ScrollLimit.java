@@ -51,13 +51,6 @@ public final class ScrollLimit {
     private static final long TICK_MS = 15_000L;
     private static final long TOAST_INTERVAL_MS = 10_000L;
 
-    /**
-     * Dev switch: treat today's budget as already spent so gestures are blocked from the first
-     * frame, without persisting a lock that would outlive this build. Set back to false before
-     * releasing anything for normal use.
-     */
-    private static final boolean FORCE_LIMIT_REACHED = true;
-
     private static SharedPreferences prefs;
     private static Handler handler;
     private static boolean installed;
@@ -151,10 +144,6 @@ public final class ScrollLimit {
         int limit = enforcedLimitMinutes();
         if (limit <= 0) {
             blocked = false;
-            return;
-        }
-        if (FORCE_LIMIT_REACHED) {
-            blocked = true;
             return;
         }
         boolean over = usedMs >= limit * 60_000L;

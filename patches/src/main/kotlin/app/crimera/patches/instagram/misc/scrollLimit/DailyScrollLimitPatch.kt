@@ -23,7 +23,7 @@ val dailyScrollLimitPatch =
     bytecodePatch(
         name = "Daily scroll limit",
         description = "Sets a daily limit on minutes spent in the app. Once it is used up, scrolling is disabled until midnight while the rest of the app keeps working.",
-        default = true,
+        default = false,
     ) {
         dependsOn(settingsPatch)
 

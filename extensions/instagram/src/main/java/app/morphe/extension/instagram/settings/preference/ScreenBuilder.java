@@ -430,6 +430,15 @@ public class ScreenBuilder {
                 )
             );
         }
+        if (SettingsStatus.dailyScrollLimit) {
+            addPreference(
+                    helper.editTextNumPreference(
+                            str("piko_daily_scroll_limit"),
+                            ScrollLimit.settingsSummary(),
+                            Settings.DAILY_SCROLL_LIMIT_MINUTES
+                    )
+            );
+        }
         if (SettingsStatus.disableSwipeToCreate) {
             addPreference(
                     helper.switchPreference(
@@ -562,15 +571,6 @@ public class ScreenBuilder {
                             str("piko_view_watch_history"),
                             "",
                             "view_watch_history"
-                    )
-            );
-        }
-        if (SettingsStatus.dailyScrollLimit) {
-            addPreference(
-                    helper.editTextNumPreference(
-                            str("piko_daily_scroll_limit"),
-                            ScrollLimit.settingsSummary(),
-                            Settings.DAILY_SCROLL_LIMIT_MINUTES
                     )
             );
         }

@@ -107,6 +107,12 @@ public class Helper {
 
                 if (newValClass.equals("Boolean")) {
                     Boolean val = (Boolean) newValue;
+                    if (Settings.DISABLE_REELS_SCROLLING.key.equals(key)
+                            && !val
+                            && !ScrollLimit.canEnableReelsScrolling()) {
+                        Utils.showToastShort(str("piko_daily_scroll_limit_locked"));
+                        return false;
+                    }
                     if (Settings.AMOLED_THEME.key.equals(key)) {
                         return MaterialYouTheme.requestAmoledChange(context, val);
                     }
@@ -116,11 +122,6 @@ public class Helper {
                     saved = SharedPref.setBooleanPref(key, val);
                 } else if (newValClass.equals("String")) {
                     String val = (String) newValue;
-                    if (Settings.DAILY_SCROLL_LIMIT_MINUTES.key.equals(key)
-                            && !ScrollLimit.canChangeLimit(val)) {
-                        Utils.showToastShort(str("piko_daily_scroll_limit_locked"));
-                        return false;
-                    }
                     if(key.contains("_")) {
                         saved = SharedPref.setStringPref(key, val);
                     }else{

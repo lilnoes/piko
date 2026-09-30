@@ -81,7 +81,7 @@ To patch with Twitter/X version 11.88 to 12.4, you must include patches from ano
 ## ⚙️ Patch Details
 
 <!-- PATCHES_START -->
-> **[v3.11.1](https://github.com/lilnoes/piko/releases/tag/v3.11.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;135 patches total
+> **[v3.12.0-dev.1](https://github.com/lilnoes/piko/releases/tag/v3.12.0-dev.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;135 patches total
 <details>
 <summary>📦 Twitter&nbsp;&nbsp;•&nbsp;&nbsp;74 patches</summary>
 <br>
@@ -190,7 +190,7 @@ To patch with Twitter/X version 11.88 to 12.4, you must include patches from ano
 | [Custom sharing domain](#custom-sharing-domain) | Allows for using custom domains when sharing posts, reels and stories. |  |
 | [Customise story ring size](#customise-story-ring-size) |  |  |
 | [Customise story timestamp](#customise-story-timestamp) | Customise the timestamp that shows when the story was posted |  |
-| [Daily scroll limit](#daily-scroll-limit) | Sets a daily limit on minutes spent in the app. Once it is used up, scrolling is disabled until midnight while the rest of the app keeps working. |  |
+| [Daily scroll limit](#daily-scroll-limit) | Sets a daily limit on minutes spent in the app. Once it is used up, Disable Reels scrolling is switched on and held on until midnight. |  |
 | [Disable Reels scrolling](#disable-reels-scrolling) | Disables the endless scrolling behavior in Instagram Reels, preventing swiping to the next Reel. Note: On a clean install, the 'Tip' animation may appear but will stop on its own after a few seconds. |  |
 | [Disable ads](#disable-ads) |  |  |
 | [Disable analytics](#disable-analytics) | Block analytics that are sent to Instagram/Facebook servers. |  |

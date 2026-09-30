@@ -2,7 +2,7 @@
 >
 > **Watch history** (Instagram **439.0.0.37.89**): records posts and Reels as you view them (not prefetch), stores them locally, and adds a searchable history button on the home feed. Grid of cover thumbnails; All / Posts / Reels tabs; search by username, caption, hashtag, or title; tap to open the original; clear history; on/off in Piko settings.
 >
-> Updates are published **only when this patch breaks**, not on every upstream Piko or Instagram release.
+> Updates are published **only when this patch breaks**, not on every upstream Piko or Instagram release
 
 <p align="center">
   <img src="docs/ss.jpeg" alt="Watch history example" width="320">

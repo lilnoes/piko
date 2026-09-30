@@ -1,3 +1,9 @@
+## [3.11.0-dev.3](https://github.com/lilnoes/piko/compare/v3.11.0-dev.2...v3.11.0-dev.3) (2026-09-30)
+
+### 🐛 Bug Fixes
+
+* dummy change ([7548f86](https://github.com/lilnoes/piko/commit/7548f868d6a18efdd6dddf33c0a5affc1ca2c9b5))
+
 ## [3.11.0-dev.2](https://github.com/lilnoes/piko/compare/v3.11.0-dev.1...v3.11.0-dev.2) (2026-09-30)
 
 ### 🐛 Bug Fixes

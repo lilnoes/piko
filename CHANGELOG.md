@@ -1,8 +1,21 @@
-## [3.11.0-dev.3](https://github.com/lilnoes/piko/compare/v3.11.0-dev.2...v3.11.0-dev.3) (2026-09-30)
+## [3.11.0](https://github.com/lilnoes/piko/compare/v3.10.0...v3.11.0) (2026-09-30)
 
 ### 🐛 Bug Fixes
 
-* dummy change ([7548f86](https://github.com/lilnoes/piko/commit/7548f868d6a18efdd6dddf33c0a5affc1ca2c9b5))
+* Align fork releases with the Morphe patches template ([6782f93](https://github.com/lilnoes/piko/commit/6782f938313f61d5c929a34beffbce3e198f9636))
+* Document watch-history hook class for pre-release builds ([1967b77](https://github.com/lilnoes/piko/commit/1967b777f659b0f24e1dc26905cefad840e07e4e))
+* fix crash ([42c756a](https://github.com/lilnoes/piko/commit/42c756adb72012d06c68a613c626444eff860135))
+* remove forceful flag ([c2731e7](https://github.com/lilnoes/piko/commit/c2731e7290a54b3556c4503dab3baf4eaf7f26ea))
+* Trigger next Morphe pre-release build ([c6cad5c](https://github.com/lilnoes/piko/commit/c6cad5cc76bc1b63d732ae114ce9e5204783e3d3))
+* use covers for history list ([a1138c4](https://github.com/lilnoes/piko/commit/a1138c46d78750cf91170526fff24cd70e4e6df7))
+* watch history ([853fb94](https://github.com/lilnoes/piko/commit/853fb94e1caa30c84c1616a6a11f15dd7061703c))
+* watch history ([f488293](https://github.com/lilnoes/piko/commit/f488293c65a9c5c02f9bb3d41f6a87e1c8ca6c6a))
+* watch history ([dcd4a9e](https://github.com/lilnoes/piko/commit/dcd4a9ebfdd148d097da665a7bca998947c380f0))
+* watch history ([911cb56](https://github.com/lilnoes/piko/commit/911cb56e57e47d344e404b4680a89841ccf0adbe))
+
+### ✨ New Features
+
+* add daily scroll limit ([c4fc2b5](https://github.com/lilnoes/piko/commit/c4fc2b51a3ae95721b18a513c78ce809c520d4e6))
 
 ## [3.11.0-dev.2](https://github.com/lilnoes/piko/compare/v3.11.0-dev.1...v3.11.0-dev.2) (2026-09-30)
 

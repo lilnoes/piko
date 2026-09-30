@@ -26,6 +26,7 @@ import  app.morphe.extension.instagram.patches.devFlags.Flag;
 
 import app.morphe.extension.crimera.downloader.StorageUtils;
 import app.morphe.extension.instagram.patches.Links;
+import app.morphe.extension.instagram.patches.scrollLimit.ScrollLimit;
 import app.morphe.extension.instagram.settings.SettingsStatus;
 import app.morphe.extension.instagram.settings.Settings;
 import app.morphe.extension.instagram.settings.preference.widgets.*;
@@ -561,6 +562,15 @@ public class ScreenBuilder {
                             str("piko_view_watch_history"),
                             "",
                             "view_watch_history"
+                    )
+            );
+        }
+        if (SettingsStatus.dailyScrollLimit) {
+            addPreference(
+                    helper.editTextNumPreference(
+                            str("piko_daily_scroll_limit"),
+                            ScrollLimit.settingsSummary(),
+                            Settings.DAILY_SCROLL_LIMIT_MINUTES
                     )
             );
         }

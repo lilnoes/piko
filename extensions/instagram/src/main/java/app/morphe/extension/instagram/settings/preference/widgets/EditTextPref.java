@@ -14,6 +14,7 @@ import android.text.InputType;
 import android.view.View;
 import android.view.ViewGroup;
 import app.morphe.extension.instagram.patches.Links;
+import app.morphe.extension.instagram.patches.scrollLimit.ScrollLimit;
 import app.morphe.extension.instagram.settings.Settings;
 import app.morphe.extension.instagram.settings.preference.Helper;
 
@@ -49,16 +50,28 @@ public class EditTextPref extends EditTextPreference {
         setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
             @Override
             public boolean onPreferenceChange(Preference preference, Object newValue) {
-                helper.setValue(preference,newValue);
+                if (!helper.setValue(preference, newValue)) {
+                    return false;
+                }
                 //TODO: Implement better soution for summary.
                 String summary = (String) newValue;
                 if (Settings.CUSTOM_SHARING_DOMAIN.key.equals(preference.getKey())) {
                     summary = Links.customSharingDomainSummary(summary);
+                } else if (Settings.DAILY_SCROLL_LIMIT_MINUTES.key.equals(preference.getKey())) {
+                    summary = ScrollLimit.settingsSummary(parseMinutes(summary));
                 }
                 preference.setSummary(summary);
                 return true;
             }
         });
+    }
+
+    private static int parseMinutes(String value) {
+        try {
+            return Math.max(0, Integer.parseInt(value.trim()));
+        } catch (Exception ex) {
+            return 0;
+        }
     }
 
     @Override

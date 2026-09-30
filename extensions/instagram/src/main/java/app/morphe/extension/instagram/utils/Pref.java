@@ -297,6 +297,15 @@ public class Pref {
     public static boolean watchHistory() {
         return SharedPref.getBooleanPref(Settings.WATCH_HISTORY) && SettingsStatus.watchHistory;
     }
+    /** Minutes of daily foreground time before scrolling is disabled; 0 means no limit. */
+    public static int dailyScrollLimitMinutes() {
+        if (!SettingsStatus.dailyScrollLimit) return 0;
+        try {
+            return Math.max(0, Integer.parseInt(SharedPref.getStringPref(Settings.DAILY_SCROLL_LIMIT_MINUTES).trim()));
+        } catch (Exception ex) {
+            return 0;
+        }
+    }
     public static boolean downloadWithExternalDownloader() {
         return SharedPref.getBooleanPref(Settings.DOWNLOAD_WITH_EXTERNAL_DOWNLOADER) && SettingsStatus.downloadWithExternalDownloader;
     }

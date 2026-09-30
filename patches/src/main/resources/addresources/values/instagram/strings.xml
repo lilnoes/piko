@@ -379,6 +379,12 @@
     <string name="piko_watch_history_reel">reel</string>
     <string name="piko_watch_history_debug">Debug</string>
     <string name="piko_watch_history_debug_title">Watch history capture log</string>
+    <string name="piko_daily_scroll_limit">Daily scroll limit</string>
+    <string name="piko_daily_scroll_limit_desc">Minutes you may spend in the app each day. Once used up, scrolling is disabled until midnight while everything else keeps working. 0 disables the limit.</string>
+    <string name="piko_daily_scroll_limit_usage">Used %1$d of %2$d min today</string>
+    <string name="piko_daily_scroll_limit_locked">Limit reached. Scrolling stays off until midnight and the limit cannot be raised today.</string>
+    <string name="piko_daily_scroll_limit_reached">Daily limit reached, scrolling is disabled</string>
+
     <string name="piko_copy">Copy</string>
     <string name="piko_copied">Copied</string>
 </resources>

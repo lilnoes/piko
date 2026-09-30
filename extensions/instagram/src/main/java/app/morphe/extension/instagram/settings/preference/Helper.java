@@ -7,6 +7,8 @@
 
 package app.morphe.extension.instagram.settings.preference;
 
+import static app.morphe.extension.instagram.utils.IgStr.str;
+
 import android.content.Context;
 import android.preference.Preference;
 import java.util.Set;
@@ -16,6 +18,7 @@ import app.morphe.extension.instagram.settings.preference.widgets.ListPref;
 import app.morphe.extension.instagram.settings.preference.widgets.ButtonPref;
 import app.morphe.extension.instagram.settings.preference.widgets.EditTextPref;
 import app.morphe.extension.instagram.settings.preference.widgets.MultiSelectListPref;
+import app.morphe.extension.instagram.patches.scrollLimit.ScrollLimit;
 import app.morphe.extension.instagram.settings.SettingsRestart;
 import app.morphe.extension.instagram.settings.Settings;
 import app.morphe.extension.instagram.theme.MaterialYouTheme;
@@ -113,6 +116,11 @@ public class Helper {
                     saved = SharedPref.setBooleanPref(key, val);
                 } else if (newValClass.equals("String")) {
                     String val = (String) newValue;
+                    if (Settings.DAILY_SCROLL_LIMIT_MINUTES.key.equals(key)
+                            && !ScrollLimit.canChangeLimit(val)) {
+                        Utils.showToastShort(str("piko_daily_scroll_limit_locked"));
+                        return false;
+                    }
                     if(key.contains("_")) {
                         saved = SharedPref.setStringPref(key, val);
                     }else{

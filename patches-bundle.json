@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-09-06T00:52:40",
-  "description": "## [3.10.1-dev.8](https://github.com/lilnoes/piko/compare/v3.10.1-dev.7...v3.10.1-dev.8) (2026-09-06)\n\n### 🐛 Bug Fixes\n\n* watch history ([853fb94](https://github.com/lilnoes/piko/commit/853fb94e1caa30c84c1616a6a11f15dd7061703c))",
-  "download_url": "https://github.com/lilnoes/piko/releases/download/v3.10.1-dev.8/patches-3.10.1-dev.8.mpp",
+  "created_at": "2026-09-30T02:30:43",
+  "description": "## [3.11.0-dev.2](https://github.com/lilnoes/piko/compare/v3.11.0-dev.1...v3.11.0-dev.2) (2026-09-30)\n\n### 🐛 Bug Fixes\n\n* remove forceful flag ([c2731e7](https://github.com/lilnoes/piko/commit/c2731e7290a54b3556c4503dab3baf4eaf7f26ea))",
+  "download_url": "https://github.com/lilnoes/piko/releases/download/v3.11.0-dev.2/patches-3.11.0-dev.2.mpp",
   "signature_download_url": "",
-  "version": "3.10.1-dev.8"
+  "version": "3.11.0-dev.2"
 }

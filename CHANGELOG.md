@@ -1,3 +1,15 @@
+## [3.11.0-dev.2](https://github.com/lilnoes/piko/compare/v3.11.0-dev.1...v3.11.0-dev.2) (2026-09-30)
+
+### 🐛 Bug Fixes
+
+* remove forceful flag ([c2731e7](https://github.com/lilnoes/piko/commit/c2731e7290a54b3556c4503dab3baf4eaf7f26ea))
+
+## [3.11.0-dev.1](https://github.com/lilnoes/piko/compare/v3.10.1-dev.8...v3.11.0-dev.1) (2026-09-30)
+
+### ✨ New Features
+
+* add daily scroll limit ([c4fc2b5](https://github.com/lilnoes/piko/commit/c4fc2b51a3ae95721b18a513c78ce809c520d4e6))
+
 ## [3.10.1-dev.8](https://github.com/lilnoes/piko/compare/v3.10.1-dev.7...v3.10.1-dev.8) (2026-09-06)
 
 ### 🐛 Bug Fixes

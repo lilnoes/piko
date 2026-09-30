@@ -204,7 +204,9 @@ public class SettingsStatus {
     public static void moreOptionsOnProfile() { moreOptionsOnProfile = true; }
     public static boolean watchHistory = false;
     public static void watchHistory() { watchHistory = true; }
-    public static boolean miscSection() {return ( saveMediaCommentButton || moreOptionsOnProfile || moreOptionsOnPost || watchHistory || customiseStoryRingSize || changeLikeAnimation || unlockPlusBenefits || storiesAudioAutoplay || disableVideoAutoplay || removeEmptyBottomSpace || copyCommentButton || improveImageViewing || customiseStoryTimestamp || disableAnalytics || disableDiscoverPeople || followBackIndicator || viewStoryMentions || disableStoryFlipping || loopStory || hideReshareButton);}
+    public static boolean dailyScrollLimit = false;
+    public static void dailyScrollLimit() { dailyScrollLimit = true; }
+    public static boolean miscSection() {return ( dailyScrollLimit || saveMediaCommentButton || moreOptionsOnProfile || moreOptionsOnPost || watchHistory || customiseStoryRingSize || changeLikeAnimation || unlockPlusBenefits || storiesAudioAutoplay || disableVideoAutoplay || removeEmptyBottomSpace || copyCommentButton || improveImageViewing || customiseStoryTimestamp || disableAnalytics || disableDiscoverPeople || followBackIndicator || viewStoryMentions || disableStoryFlipping || loopStory || hideReshareButton);}
 
     //DM section
     public static boolean unlimitedReplaysOnEphemeralMedia = false;
@@ -243,6 +245,7 @@ public class SettingsStatus {
         FLAGS.put(str("piko_more_profile_options"),SettingsStatus.moreOptionsOnProfile);
         FLAGS.put(str("piko_enable_more_options_on_post"),SettingsStatus.moreOptionsOnPost);
         FLAGS.put(str("piko_watch_history"),SettingsStatus.watchHistory);
+        FLAGS.put(str("piko_daily_scroll_limit"),SettingsStatus.dailyScrollLimit);
         FLAGS.put(str("piko_stories_audio_autoplay"),SettingsStatus.storiesAudioAutoplay);
 
         FLAGS.put(str("piko_disable_video_autoplay"),SettingsStatus.disableVideoAutoplay);

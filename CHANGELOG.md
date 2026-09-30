@@ -1,3 +1,9 @@
+## [3.12.0-dev.1](https://github.com/lilnoes/piko/compare/v3.11.1...v3.12.0-dev.1) (2026-09-30)
+
+### ✨ New Features
+
+* Add scroll limit ([729581e](https://github.com/lilnoes/piko/commit/729581e374270360c26846378245881f86984ede))
+
 ## [3.11.1](https://github.com/lilnoes/piko/compare/v3.11.0...v3.11.1) (2026-09-30)
 
 ### 🐛 Bug Fixes

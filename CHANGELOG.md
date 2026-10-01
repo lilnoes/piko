@@ -1,3 +1,9 @@
+## [3.12.1-dev.4](https://github.com/lilnoes/piko/compare/v3.12.1-dev.3...v3.12.1-dev.4) (2026-10-01)
+
+### 🐛 Bug Fixes
+
+* add stories ([78f621f](https://github.com/lilnoes/piko/commit/78f621f817590366bedf7ba7a4e06d7238032a88))
+
 ## [3.12.1-dev.3](https://github.com/lilnoes/piko/compare/v3.12.1-dev.2...v3.12.1-dev.3) (2026-10-01)
 
 ### 🐛 Bug Fixes

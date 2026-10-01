@@ -511,6 +511,56 @@ val watchHistoryPatch =
                 sweepClipsCallback(clipsLoop[type].orEmpty(), "onClipsLoop", 3)
             }
 
+            /**
+             * Feed posts get no help from the impression tracker, which is behind a server flag
+             * and was not running on the test device. The listener's own impression start and
+             * visibility updates bracket the time a post spends on screen, which is enough to
+             * measure the dwell in the extension. Both are identified by shape: the four-argument
+             * form is unique to the impression start, and only the visibility update carries a
+             * `View` and a `double`.
+             */
+            val listenerMethods =
+                runCatching { ImpressionListenerFingerprint.classDef.methods.toList() }
+                    .getOrDefault(emptyList())
+
+            fun listenerName(params: List<String>): String? =
+                listenerMethods.firstOrNull { it.paramTypes() == params }?.name
+
+            /** Every implementation of one listener callback, found by the pass above. */
+            fun sweepListener(name: String?, hook: String, paramIndex: Int): Int {
+                if (name == null) return 0
+                var count = 0
+                for (group in namedGroups[name].orEmpty()) {
+                    for ((classDef, method) in groupHits[group]) {
+                        runCatching {
+                            val mutable =
+                                mutableClassDefBy(classDef).methods.first {
+                                    it.name == name && it.paramTypes() == method.paramTypes()
+                                }
+                            if (mutable.implementation == null) return@runCatching
+                            val register = mutable.paramRegister(paramIndex)
+                            mutable.addInstructions(
+                                0,
+                                "invoke-static/range {p$register .. p$register}, " +
+                                    "$HOOK_CLASS->$hook(Ljava/lang/Object;)V",
+                            )
+                            count++
+                        }
+                    }
+                }
+                return count
+            }
+
+            anchor("feedEnter") {
+                val name = listenerName(listOf(MEDIA_CLASS_NAME, "I", "I", "I"))
+                sweepListener(name, "onFeedEnter", 0)
+            }
+
+            anchor("feedVisible") {
+                val name = listenerName(listOf("Landroid/view/View;", MEDIA_CLASS_NAME, "D"))
+                sweepListener(name, "onFeedVisible", 1)
+            }
+
             if (injected == 0) {
                 throw PatchException("Watch history: no capture hooks injected (${report.joinToString()})")
             }

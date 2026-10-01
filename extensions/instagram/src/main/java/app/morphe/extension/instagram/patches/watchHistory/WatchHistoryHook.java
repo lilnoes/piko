@@ -43,7 +43,7 @@ public class WatchHistoryHook {
     private static final String[] SITES = {
         "autoplayState", "autoplayHistory", "screenItem", "feedBind",
         "frameBind", "reelBind", "aslSession", "mediaExt", "clipsState",
-        "imprDwell", "imprEnd", "clipsWatch",
+        "imprDwell", "imprEnd", "clipsWatch", "feedWatch",
     };
     private static final int[] SITE_CALLS = new int[SITES.length];
     private static final int[] SITE_NULLS = new int[SITES.length];
@@ -284,6 +284,58 @@ public class WatchHistoryHook {
     }
 
     /**
+     * Milliseconds a feed post must stay on screen to count as watched, matching the threshold
+     * Instagram's own clips listener applies to reels.
+     *
+     * <p>The impression tracker that supplies that threshold for reels is behind a server flag
+     * and does not run on the feed, so the dwell is measured here instead, between the impression
+     * start and the visibility updates that follow it while the post remains on screen.
+     */
+    private static final int FEED_WATCH_MS = 3000;
+
+    /** Several posts are partly on screen at once, so each is timed independently. */
+    private static final int TRACKED_FEED = 8;
+    private static final Object[] FEED_MEDIA = new Object[TRACKED_FEED];
+    private static final long[] FEED_ENTERED = new long[TRACKED_FEED];
+    private static int feedSlot;
+
+    /** A feed post came on screen. */
+    public static void onFeedEnter(Object media) {
+        try {
+            // Every implementation in the listener's delegation chain is hooked, so the same post
+            // arrives several times per impression and must not restart its own timer.
+            if (media == null || feedSlotOf(media) >= 0) return;
+            FEED_MEDIA[feedSlot] = media;
+            FEED_ENTERED[feedSlot] = System.currentTimeMillis();
+            feedSlot = (feedSlot + 1) % TRACKED_FEED;
+        } catch (Exception ignored) {}
+    }
+
+    /**
+     * Still on screen. Fires continuously while a post is visible, which is what turns the
+     * recorded impression start into a measured dwell.
+     */
+    public static void onFeedVisible(Object media) {
+        try {
+            if (media == null) return;
+            int slot = feedSlotOf(media);
+            if (slot < 0) return;
+            long entered = FEED_ENTERED[slot];
+            if (entered == 0) return;
+            if (System.currentTimeMillis() - entered < FEED_WATCH_MS) return;
+            FEED_ENTERED[slot] = 0;
+            capture(media, 12);
+        } catch (Exception ignored) {}
+    }
+
+    private static int feedSlotOf(Object media) {
+        for (int i = 0; i < TRACKED_FEED; i++) {
+            if (FEED_MEDIA[i] == media) return i;
+        }
+        return -1;
+    }
+
+    /**
      * The clips item carries its media in a single field, located by type because its name is
      * obfuscated and changes between Instagram versions.
      */
@@ -407,7 +459,7 @@ public class WatchHistoryHook {
         // and clips sites are Instagram's own "this was on screen long enough to count" events:
         // they are reached only after a view outlives a dwell threshold, which is the one thing
         // prefetch cannot satisfy.
-        return site == 0 || site == 1 || site == 9 || site == 10 || site == 11;
+        return site == 0 || site == 1 || site == 9 || site == 10 || site == 11 || site == 12;
     }
 
     private static void persist(Object mediaObject, int site) {

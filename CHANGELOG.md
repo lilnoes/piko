@@ -1,3 +1,9 @@
+## [3.12.1-dev.3](https://github.com/lilnoes/piko/compare/v3.12.1-dev.2...v3.12.1-dev.3) (2026-10-01)
+
+### 🐛 Bug Fixes
+
+* watch history ([78ac96d](https://github.com/lilnoes/piko/commit/78ac96d7959fb16bc5465d7be9baa02a3122f1a1))
+
 ## [3.12.1-dev.2](https://github.com/lilnoes/piko/compare/v3.12.1-dev.1...v3.12.1-dev.2) (2026-10-01)
 
 ### 🐛 Bug Fixes

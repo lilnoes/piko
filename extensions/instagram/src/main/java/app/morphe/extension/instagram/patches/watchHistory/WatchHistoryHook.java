@@ -42,21 +42,25 @@ public class WatchHistoryHook {
     private static final String[] SITES = {
         "autoplayState", "autoplayHistory", "screenItem", "feedBind",
         "frameBind", "reelBind", "aslSession", "mediaExt", "clipsState",
+        "imprDwell", "imprEnd",
     };
     private static final int[] SITE_CALLS = new int[SITES.length];
     private static final int[] SITE_NULLS = new int[SITES.length];
     private static final Object[] SITE_LAST = new Object[SITES.length];
 
     /**
-     * Diagnostic probes. Every anchor above that was meant to represent playback reported zero
-     * calls on 439, so the patch spreads these across the autoplay classes and the debug log
-     * reports which ones fire. Probes never write history; they only count and identify.
+     * Diagnostic probes. The autoplay anchors above never fired on 439, so these are spread
+     * across Instagram's own impression tracker and its on-screen listener implementations, and
+     * the debug log reports which ones fire and when. Probes never write history; they only
+     * count and identify. The millisecond offset is what separates a real view from a prefetch
+     * burst: prefetch delivers several distinct media inside the same instant.
      */
-    static final int PROBE_COUNT = 12;
+    static final int PROBE_COUNT = 24;
     private static final int PROBE_LOG_LIMIT = 6;
     private static final int[] PROBE_CALLS = new int[PROBE_COUNT];
     private static final int[] PROBE_LOGGED = new int[PROBE_COUNT];
     private static final Object[] PROBE_LAST = new Object[PROBE_COUNT];
+    private static volatile long probeEpoch;
 
     /** Cross-site identity gate: the same media object reaches several anchors per scroll. */
     private static final Object[] SEEN = new Object[16];
@@ -123,6 +127,30 @@ public class WatchHistoryHook {
 
     public static void onProbe11(Object media) { probe(media, 11); }
 
+    public static void onProbe12(Object media) { probe(media, 12); }
+
+    public static void onProbe13(Object media) { probe(media, 13); }
+
+    public static void onProbe14(Object media) { probe(media, 14); }
+
+    public static void onProbe15(Object media) { probe(media, 15); }
+
+    public static void onProbe16(Object media) { probe(media, 16); }
+
+    public static void onProbe17(Object media) { probe(media, 17); }
+
+    public static void onProbe18(Object media) { probe(media, 18); }
+
+    public static void onProbe19(Object media) { probe(media, 19); }
+
+    public static void onProbe20(Object media) { probe(media, 20); }
+
+    public static void onProbe21(Object media) { probe(media, 21); }
+
+    public static void onProbe22(Object media) { probe(media, 22); }
+
+    public static void onProbe23(Object media) { probe(media, 23); }
+
     /**
      * Counts every call, and describes the first few distinct media per probe so the log can be
      * correlated against what was actually on screen at that moment.
@@ -134,11 +162,14 @@ public class WatchHistoryHook {
             PROBE_LAST[index] = media;
             if (PROBE_LOGGED[index] >= PROBE_LOG_LIMIT) return;
             PROBE_LOGGED[index]++;
-            getWorker().post(() -> describeProbe(media, index));
+            long now = System.currentTimeMillis();
+            if (probeEpoch == 0) probeEpoch = now;
+            final long offset = now - probeEpoch;
+            getWorker().post(() -> describeProbe(media, index, offset));
         } catch (Exception ignored) {}
     }
 
-    private static void describeProbe(Object media, int index) {
+    private static void describeProbe(Object media, int index, long offset) {
         String description;
         try {
             MediaData mediaData = new MediaData(media);
@@ -151,7 +182,7 @@ public class WatchHistoryHook {
         } catch (Exception e) {
             description = "unreadable: " + e;
         }
-        WatchHistoryDebug.log("probe" + index + " saw " + description);
+        WatchHistoryDebug.log("probe" + index + " at " + offset + "ms saw " + description);
         WatchHistoryDebug.flush();
     }
 
@@ -189,6 +220,16 @@ public class WatchHistoryHook {
 
     public static void onClipsState(Object media) {
         capture(media, 8);
+    }
+
+    /** Instagram's impression tracker closing out a view that lasted past its dwell threshold. */
+    public static void onImpressionDwell(Object media) {
+        capture(media, 9);
+    }
+
+    /** Impression end, which the tracker only reports once the minimum view duration is met. */
+    public static void onImpressionEnd(Object media) {
+        capture(media, 10);
     }
 
     /**
@@ -281,9 +322,11 @@ public class WatchHistoryHook {
      * behind it in the same instant, so treating it as a watch fills the list with unseen media.
      */
     private static boolean isWatchSite(int site) {
-        // autoplayState, autoplayHistory. Neither has been observed firing yet; until a probe
-        // identifies a real playback method, nothing is promoted to watched.
-        return site == 0 || site == 1;
+        // autoplayState and autoplayHistory have never been observed firing on 439. The two
+        // impression sites are Instagram's own "this was on screen long enough to count" events:
+        // the tracker reaches them only after the view outlives a dwell threshold, which is the
+        // one thing prefetch cannot satisfy.
+        return site == 0 || site == 1 || site == 9 || site == 10;
     }
 
     private static void persist(Object mediaObject, int site) {

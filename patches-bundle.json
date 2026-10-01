@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-10-01T03:26:38",
-  "description": "## [3.12.1-dev.1](https://github.com/lilnoes/piko/compare/v3.12.0...v3.12.1-dev.1) (2026-10-01)\n\n### 🐛 Bug Fixes\n\n* watch history ([babb96f](https://github.com/lilnoes/piko/commit/babb96fc83b230078b4c39bc97a287a6831b25ec))",
-  "download_url": "https://github.com/lilnoes/piko/releases/download/v3.12.1-dev.1/patches-3.12.1-dev.1.mpp",
+  "created_at": "2026-10-01T04:17:55",
+  "description": "## [3.12.1-dev.2](https://github.com/lilnoes/piko/compare/v3.12.1-dev.1...v3.12.1-dev.2) (2026-10-01)\n\n### 🐛 Bug Fixes\n\n* watch history ([dd7700b](https://github.com/lilnoes/piko/commit/dd7700b5784eaeb1fadb10c1ca9f26d47fca24e2))",
+  "download_url": "https://github.com/lilnoes/piko/releases/download/v3.12.1-dev.2/patches-3.12.1-dev.2.mpp",
   "signature_download_url": "",
-  "version": "3.12.1-dev.1"
+  "version": "3.12.1-dev.2"
 }

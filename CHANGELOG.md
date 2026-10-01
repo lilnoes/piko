@@ -1,3 +1,9 @@
+## [3.12.1-dev.2](https://github.com/lilnoes/piko/compare/v3.12.1-dev.1...v3.12.1-dev.2) (2026-10-01)
+
+### 🐛 Bug Fixes
+
+* watch history ([dd7700b](https://github.com/lilnoes/piko/commit/dd7700b5784eaeb1fadb10c1ca9f26d47fca24e2))
+
 ## [3.12.1-dev.1](https://github.com/lilnoes/piko/compare/v3.12.0...v3.12.1-dev.1) (2026-10-01)
 
 ### 🐛 Bug Fixes

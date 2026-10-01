@@ -11,6 +11,7 @@ import android.content.Intent;
 import android.os.Handler;
 import android.os.HandlerThread;
 
+import java.lang.reflect.Field;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -42,7 +43,7 @@ public class WatchHistoryHook {
     private static final String[] SITES = {
         "autoplayState", "autoplayHistory", "screenItem", "feedBind",
         "frameBind", "reelBind", "aslSession", "mediaExt", "clipsState",
-        "imprDwell", "imprEnd",
+        "imprDwell", "imprEnd", "clipsWatch",
     };
     private static final int[] SITE_CALLS = new int[SITES.length];
     private static final int[] SITE_NULLS = new int[SITES.length];
@@ -233,6 +234,71 @@ public class WatchHistoryHook {
     }
 
     /**
+     * Milliseconds of playback after which Instagram's own clips watch-state listener records a
+     * reel as watched. Matching its threshold keeps the history in step with what Instagram
+     * itself considers viewed.
+     */
+    private static final int CLIPS_WATCH_MS = 3000;
+
+    private static final String MEDIA_CLASS_NAME = "com.instagram.feed.media.Media";
+    private static final ConcurrentHashMap<Class<?>, Field> MEDIA_FIELDS = new ConcurrentHashMap<>();
+    private static Object lastClipsItem;
+
+    /** Reel playback progress. Fires every few hundred milliseconds while a reel is on screen. */
+    public static void onClipsProgress(Object item, int positionMs) {
+        if (positionMs < CLIPS_WATCH_MS) return;
+        clipsWatch(item);
+    }
+
+    /** A reel that looped has necessarily been watched through once. */
+    public static void onClipsLoop(Object item, int positionMs, int loopCount) {
+        if (loopCount < 1) return;
+        clipsWatch(item);
+    }
+
+    /**
+     * Progress keeps arriving for the rest of the reel once the threshold is passed, so the item
+     * is promoted once and the reference comparison keeps the rest off the worker thread.
+     */
+    private static void clipsWatch(Object item) {
+        try {
+            if (item == null || item == lastClipsItem) return;
+            lastClipsItem = item;
+            Object media = clipsMedia(item);
+            if (media != null) capture(media, 11);
+        } catch (Exception e) {
+            lastSkip = "clipsWatch error: " + e.getMessage();
+        }
+    }
+
+    /**
+     * The clips item carries its media in a single field, located by type because its name is
+     * obfuscated and changes between Instagram versions.
+     */
+    private static Object clipsMedia(Object item) throws Exception {
+        Class<?> itemClass = item.getClass();
+        Field field = MEDIA_FIELDS.get(itemClass);
+        if (field == null) {
+            for (Class<?> c = itemClass; c != null && c != Object.class; c = c.getSuperclass()) {
+                for (Field candidate : c.getDeclaredFields()) {
+                    if (MEDIA_CLASS_NAME.equals(candidate.getType().getName())) {
+                        candidate.setAccessible(true);
+                        field = candidate;
+                        break;
+                    }
+                }
+                if (field != null) break;
+            }
+            if (field == null) {
+                skipQuiet("no media field on " + itemClass.getName());
+                return null;
+            }
+            MEDIA_FIELDS.put(itemClass, field);
+        }
+        return field.get(item);
+    }
+
+    /**
      * Runs on Instagram's own threads inside hot binder and playback paths, so everything
      * before the worker hand-off is reference comparison and integer counting.
      */
@@ -322,11 +388,11 @@ public class WatchHistoryHook {
      * behind it in the same instant, so treating it as a watch fills the list with unseen media.
      */
     private static boolean isWatchSite(int site) {
-        // autoplayState and autoplayHistory have never been observed firing on 439. The two
-        // impression sites are Instagram's own "this was on screen long enough to count" events:
-        // the tracker reaches them only after the view outlives a dwell threshold, which is the
-        // one thing prefetch cannot satisfy.
-        return site == 0 || site == 1 || site == 9 || site == 10;
+        // autoplayState and autoplayHistory have never been observed firing on 439. The impression
+        // and clips sites are Instagram's own "this was on screen long enough to count" events:
+        // they are reached only after a view outlives a dwell threshold, which is the one thing
+        // prefetch cannot satisfy.
+        return site == 0 || site == 1 || site == 9 || site == 10 || site == 11;
     }
 
     private static void persist(Object mediaObject, int site) {

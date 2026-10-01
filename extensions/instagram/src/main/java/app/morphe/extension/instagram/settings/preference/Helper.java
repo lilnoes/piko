@@ -132,7 +132,13 @@ public class Helper {
                 }
 
                 if (saved) {
-                    SettingsRestart.markChanged(previousValue, newValue);
+                    // The value is already stored, so a failure to flag the restart must not be
+                    // reported back as the write having failed.
+                    try {
+                        SettingsRestart.markChanged(previousValue, newValue);
+                    } catch (Exception ex) {
+                        Logger.printException(() -> "Failed marking settings changed: ", ex);
+                    }
                 }
             }
             return true;

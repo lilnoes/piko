@@ -224,13 +224,25 @@ public class WatchHistoryHook {
     }
 
     /** Instagram's impression tracker closing out a view that lasted past its dwell threshold. */
-    public static void onImpressionDwell(Object media) {
-        capture(media, 9);
+    public static void onImpressionDwell(Object item) {
+        if (isFeedMedia(item)) capture(item, 9);
     }
 
     /** Impression end, which the tracker only reports once the minimum view duration is met. */
-    public static void onImpressionEnd(Object media) {
-        capture(media, 10);
+    public static void onImpressionEnd(Object item) {
+        if (isFeedMedia(item)) capture(item, 10);
+    }
+
+    /**
+     * The impression tracker is shared across surfaces, so it also reports story tray items and
+     * other types that carry no media id. Those are not failures and must not reach the log.
+     */
+    private static boolean isFeedMedia(Object item) {
+        if (item == null) return false;
+        for (Class<?> c = item.getClass(); c != null; c = c.getSuperclass()) {
+            if (MEDIA_CLASS_NAME.equals(c.getName())) return true;
+        }
+        return false;
     }
 
     /**
@@ -316,7 +328,10 @@ public class WatchHistoryHook {
                 lastSkip = "pref off";
                 return;
             }
-            if (seenRecently(media)) return;
+            // The cross-site gate exists to stop several binders doing the same work for one
+            // media. A watch site must bypass it: a prefetch binder has almost always recorded
+            // the media as seen already, and promoting that row to watched is the entire point.
+            if (!isWatchSite(site) && seenRecently(media)) return;
 
             getWorker().post(() -> persist(media, site));
         } catch (Exception e) {
@@ -417,9 +432,12 @@ public class WatchHistoryHook {
                 return;
             }
 
+            boolean watched = isWatchSite(site);
             long now = System.currentTimeMillis();
             Long last = RECENT.put(mediaId, now);
-            if (last != null && now - last < DEDUPE_WINDOW_MS) {
+            // Same reasoning as the cross-site gate: a binder will usually have just written this
+            // media as seen, so a watch must not be mistaken for a duplicate of it.
+            if (!watched && last != null && now - last < DEDUPE_WINDOW_MS) {
                 skipQuiet("dedupe");
                 return;
             }
@@ -485,7 +503,6 @@ public class WatchHistoryHook {
             entry.permalink = permalink;
             entry.coverUrl = coverUrl;
             entry.watchedAt = now;
-            boolean watched = isWatchSite(site);
             PikoWatchHistoryDb.getInstance(ctx).upsert(entry, watched);
 
             if (watched) PERSISTED.incrementAndGet();

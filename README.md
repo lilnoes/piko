@@ -81,7 +81,7 @@ To patch with Twitter/X version 11.88 to 12.4, you must include patches from ano
 ## ⚙️ Patch Details
 
 <!-- PATCHES_START -->
-> **[v3.12.1-dev.4](https://github.com/lilnoes/piko/releases/tag/v3.12.1-dev.4)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;135 patches total
+> **[v3.12.1](https://github.com/lilnoes/piko/releases/tag/v3.12.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;135 patches total
 <details>
 <summary>📦 Twitter&nbsp;&nbsp;•&nbsp;&nbsp;74 patches</summary>
 <br>

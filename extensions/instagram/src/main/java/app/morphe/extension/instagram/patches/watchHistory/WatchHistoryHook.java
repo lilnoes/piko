@@ -11,6 +11,7 @@ import android.content.Intent;
 import android.os.Handler;
 import android.os.HandlerThread;
 
+import java.lang.reflect.Field;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -42,21 +43,25 @@ public class WatchHistoryHook {
     private static final String[] SITES = {
         "autoplayState", "autoplayHistory", "screenItem", "feedBind",
         "frameBind", "reelBind", "aslSession", "mediaExt", "clipsState",
+        "imprDwell", "imprEnd", "clipsWatch", "feedWatch",
     };
     private static final int[] SITE_CALLS = new int[SITES.length];
     private static final int[] SITE_NULLS = new int[SITES.length];
     private static final Object[] SITE_LAST = new Object[SITES.length];
 
     /**
-     * Diagnostic probes. Every anchor above that was meant to represent playback reported zero
-     * calls on 439, so the patch spreads these across the autoplay classes and the debug log
-     * reports which ones fire. Probes never write history; they only count and identify.
+     * Diagnostic probes. The autoplay anchors above never fired on 439, so these are spread
+     * across Instagram's own impression tracker and its on-screen listener implementations, and
+     * the debug log reports which ones fire and when. Probes never write history; they only
+     * count and identify. The millisecond offset is what separates a real view from a prefetch
+     * burst: prefetch delivers several distinct media inside the same instant.
      */
-    static final int PROBE_COUNT = 12;
+    static final int PROBE_COUNT = 24;
     private static final int PROBE_LOG_LIMIT = 6;
     private static final int[] PROBE_CALLS = new int[PROBE_COUNT];
     private static final int[] PROBE_LOGGED = new int[PROBE_COUNT];
     private static final Object[] PROBE_LAST = new Object[PROBE_COUNT];
+    private static volatile long probeEpoch;
 
     /** Cross-site identity gate: the same media object reaches several anchors per scroll. */
     private static final Object[] SEEN = new Object[16];
@@ -123,6 +128,30 @@ public class WatchHistoryHook {
 
     public static void onProbe11(Object media) { probe(media, 11); }
 
+    public static void onProbe12(Object media) { probe(media, 12); }
+
+    public static void onProbe13(Object media) { probe(media, 13); }
+
+    public static void onProbe14(Object media) { probe(media, 14); }
+
+    public static void onProbe15(Object media) { probe(media, 15); }
+
+    public static void onProbe16(Object media) { probe(media, 16); }
+
+    public static void onProbe17(Object media) { probe(media, 17); }
+
+    public static void onProbe18(Object media) { probe(media, 18); }
+
+    public static void onProbe19(Object media) { probe(media, 19); }
+
+    public static void onProbe20(Object media) { probe(media, 20); }
+
+    public static void onProbe21(Object media) { probe(media, 21); }
+
+    public static void onProbe22(Object media) { probe(media, 22); }
+
+    public static void onProbe23(Object media) { probe(media, 23); }
+
     /**
      * Counts every call, and describes the first few distinct media per probe so the log can be
      * correlated against what was actually on screen at that moment.
@@ -134,11 +163,14 @@ public class WatchHistoryHook {
             PROBE_LAST[index] = media;
             if (PROBE_LOGGED[index] >= PROBE_LOG_LIMIT) return;
             PROBE_LOGGED[index]++;
-            getWorker().post(() -> describeProbe(media, index));
+            long now = System.currentTimeMillis();
+            if (probeEpoch == 0) probeEpoch = now;
+            final long offset = now - probeEpoch;
+            getWorker().post(() -> describeProbe(media, index, offset));
         } catch (Exception ignored) {}
     }
 
-    private static void describeProbe(Object media, int index) {
+    private static void describeProbe(Object media, int index, long offset) {
         String description;
         try {
             MediaData mediaData = new MediaData(media);
@@ -151,7 +183,7 @@ public class WatchHistoryHook {
         } catch (Exception e) {
             description = "unreadable: " + e;
         }
-        WatchHistoryDebug.log("probe" + index + " saw " + description);
+        WatchHistoryDebug.log("probe" + index + " at " + offset + "ms saw " + description);
         WatchHistoryDebug.flush();
     }
 
@@ -191,6 +223,145 @@ public class WatchHistoryHook {
         capture(media, 8);
     }
 
+    /** Instagram's impression tracker closing out a view that lasted past its dwell threshold. */
+    public static void onImpressionDwell(Object item) {
+        if (isFeedMedia(item)) capture(item, 9);
+    }
+
+    /** Impression end, which the tracker only reports once the minimum view duration is met. */
+    public static void onImpressionEnd(Object item) {
+        if (isFeedMedia(item)) capture(item, 10);
+    }
+
+    /**
+     * The impression tracker is shared across surfaces, so it also reports story tray items and
+     * other types that carry no media id. Those are not failures and must not reach the log.
+     */
+    private static boolean isFeedMedia(Object item) {
+        if (item == null) return false;
+        for (Class<?> c = item.getClass(); c != null; c = c.getSuperclass()) {
+            if (MEDIA_CLASS_NAME.equals(c.getName())) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Milliseconds of playback after which Instagram's own clips watch-state listener records a
+     * reel as watched. Matching its threshold keeps the history in step with what Instagram
+     * itself considers viewed.
+     */
+    private static final int CLIPS_WATCH_MS = 3000;
+
+    private static final String MEDIA_CLASS_NAME = "com.instagram.feed.media.Media";
+    private static final ConcurrentHashMap<Class<?>, Field> MEDIA_FIELDS = new ConcurrentHashMap<>();
+    private static Object lastClipsItem;
+
+    /** Reel playback progress. Fires every few hundred milliseconds while a reel is on screen. */
+    public static void onClipsProgress(Object item, int positionMs) {
+        if (positionMs < CLIPS_WATCH_MS) return;
+        clipsWatch(item);
+    }
+
+    /** A reel that looped has necessarily been watched through once. */
+    public static void onClipsLoop(Object item, int positionMs, int loopCount) {
+        if (loopCount < 1) return;
+        clipsWatch(item);
+    }
+
+    /**
+     * Progress keeps arriving for the rest of the reel once the threshold is passed, so the item
+     * is promoted once and the reference comparison keeps the rest off the worker thread.
+     */
+    private static void clipsWatch(Object item) {
+        try {
+            if (item == null || item == lastClipsItem) return;
+            lastClipsItem = item;
+            Object media = clipsMedia(item);
+            if (media != null) capture(media, 11);
+        } catch (Exception e) {
+            lastSkip = "clipsWatch error: " + e.getMessage();
+        }
+    }
+
+    /**
+     * Milliseconds a feed post must stay on screen to count as watched, matching the threshold
+     * Instagram's own clips listener applies to reels.
+     *
+     * <p>The impression tracker that supplies that threshold for reels is behind a server flag
+     * and does not run on the feed, so the dwell is measured here instead, between the impression
+     * start and the visibility updates that follow it while the post remains on screen.
+     */
+    private static final int FEED_WATCH_MS = 3000;
+
+    /** Several posts are partly on screen at once, so each is timed independently. */
+    private static final int TRACKED_FEED = 8;
+    private static final Object[] FEED_MEDIA = new Object[TRACKED_FEED];
+    private static final long[] FEED_ENTERED = new long[TRACKED_FEED];
+    private static int feedSlot;
+
+    /** A feed post came on screen. */
+    public static void onFeedEnter(Object media) {
+        try {
+            // Every implementation in the listener's delegation chain is hooked, so the same post
+            // arrives several times per impression and must not restart its own timer.
+            if (media == null || feedSlotOf(media) >= 0) return;
+            FEED_MEDIA[feedSlot] = media;
+            FEED_ENTERED[feedSlot] = System.currentTimeMillis();
+            feedSlot = (feedSlot + 1) % TRACKED_FEED;
+        } catch (Exception ignored) {}
+    }
+
+    /**
+     * Still on screen. Fires continuously while a post is visible, which is what turns the
+     * recorded impression start into a measured dwell.
+     */
+    public static void onFeedVisible(Object media) {
+        try {
+            if (media == null) return;
+            int slot = feedSlotOf(media);
+            if (slot < 0) return;
+            long entered = FEED_ENTERED[slot];
+            if (entered == 0) return;
+            if (System.currentTimeMillis() - entered < FEED_WATCH_MS) return;
+            FEED_ENTERED[slot] = 0;
+            capture(media, 12);
+        } catch (Exception ignored) {}
+    }
+
+    private static int feedSlotOf(Object media) {
+        for (int i = 0; i < TRACKED_FEED; i++) {
+            if (FEED_MEDIA[i] == media) return i;
+        }
+        return -1;
+    }
+
+    /**
+     * The clips item carries its media in a single field, located by type because its name is
+     * obfuscated and changes between Instagram versions.
+     */
+    private static Object clipsMedia(Object item) throws Exception {
+        Class<?> itemClass = item.getClass();
+        Field field = MEDIA_FIELDS.get(itemClass);
+        if (field == null) {
+            for (Class<?> c = itemClass; c != null && c != Object.class; c = c.getSuperclass()) {
+                for (Field candidate : c.getDeclaredFields()) {
+                    if (MEDIA_CLASS_NAME.equals(candidate.getType().getName())) {
+                        candidate.setAccessible(true);
+                        field = candidate;
+                        break;
+                    }
+                }
+                if (field != null) break;
+            }
+            if (field == null) {
+                skipQuiet("no media field on " + itemClass.getName());
+                return null;
+            }
+            MEDIA_FIELDS.put(itemClass, field);
+        }
+        return field.get(item);
+    }
+
     /**
      * Runs on Instagram's own threads inside hot binder and playback paths, so everything
      * before the worker hand-off is reference comparison and integer counting.
@@ -209,7 +380,10 @@ public class WatchHistoryHook {
                 lastSkip = "pref off";
                 return;
             }
-            if (seenRecently(media)) return;
+            // The cross-site gate exists to stop several binders doing the same work for one
+            // media. A watch site must bypass it: a prefetch binder has almost always recorded
+            // the media as seen already, and promoting that row to watched is the entire point.
+            if (!isWatchSite(site) && seenRecently(media)) return;
 
             getWorker().post(() -> persist(media, site));
         } catch (Exception e) {
@@ -281,9 +455,11 @@ public class WatchHistoryHook {
      * behind it in the same instant, so treating it as a watch fills the list with unseen media.
      */
     private static boolean isWatchSite(int site) {
-        // autoplayState, autoplayHistory. Neither has been observed firing yet; until a probe
-        // identifies a real playback method, nothing is promoted to watched.
-        return site == 0 || site == 1;
+        // autoplayState and autoplayHistory have never been observed firing on 439. The impression
+        // and clips sites are Instagram's own "this was on screen long enough to count" events:
+        // they are reached only after a view outlives a dwell threshold, which is the one thing
+        // prefetch cannot satisfy.
+        return site == 0 || site == 1 || site == 9 || site == 10 || site == 11 || site == 12;
     }
 
     private static void persist(Object mediaObject, int site) {
@@ -308,9 +484,12 @@ public class WatchHistoryHook {
                 return;
             }
 
+            boolean watched = isWatchSite(site);
             long now = System.currentTimeMillis();
             Long last = RECENT.put(mediaId, now);
-            if (last != null && now - last < DEDUPE_WINDOW_MS) {
+            // Same reasoning as the cross-site gate: a binder will usually have just written this
+            // media as seen, so a watch must not be mistaken for a duplicate of it.
+            if (!watched && last != null && now - last < DEDUPE_WINDOW_MS) {
                 skipQuiet("dedupe");
                 return;
             }
@@ -376,7 +555,6 @@ public class WatchHistoryHook {
             entry.permalink = permalink;
             entry.coverUrl = coverUrl;
             entry.watchedAt = now;
-            boolean watched = isWatchSite(site);
             PikoWatchHistoryDb.getInstance(ctx).upsert(entry, watched);
 
             if (watched) PERSISTED.incrementAndGet();

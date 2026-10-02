@@ -1,3 +1,27 @@
+## [3.12.1-dev.4](https://github.com/lilnoes/piko/compare/v3.12.1-dev.3...v3.12.1-dev.4) (2026-10-01)
+
+### 🐛 Bug Fixes
+
+* add stories ([78f621f](https://github.com/lilnoes/piko/commit/78f621f817590366bedf7ba7a4e06d7238032a88))
+
+## [3.12.1-dev.3](https://github.com/lilnoes/piko/compare/v3.12.1-dev.2...v3.12.1-dev.3) (2026-10-01)
+
+### 🐛 Bug Fixes
+
+* watch history ([78ac96d](https://github.com/lilnoes/piko/commit/78ac96d7959fb16bc5465d7be9baa02a3122f1a1))
+
+## [3.12.1-dev.2](https://github.com/lilnoes/piko/compare/v3.12.1-dev.1...v3.12.1-dev.2) (2026-10-01)
+
+### 🐛 Bug Fixes
+
+* watch history ([dd7700b](https://github.com/lilnoes/piko/commit/dd7700b5784eaeb1fadb10c1ca9f26d47fca24e2))
+
+## [3.12.1-dev.1](https://github.com/lilnoes/piko/compare/v3.12.0...v3.12.1-dev.1) (2026-10-01)
+
+### 🐛 Bug Fixes
+
+* watch history ([babb96f](https://github.com/lilnoes/piko/commit/babb96fc83b230078b4c39bc97a287a6831b25ec))
+
 ## [3.12.0](https://github.com/lilnoes/piko/compare/v3.11.1...v3.12.0) (2026-09-30)
 
 ### ✨ New Features

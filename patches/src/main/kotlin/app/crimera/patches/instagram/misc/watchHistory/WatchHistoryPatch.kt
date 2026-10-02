@@ -29,8 +29,11 @@ import app.morphe.util.getReference
 import app.morphe.util.registersUsed
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
+import com.android.tools.smali.dexlib2.iface.instruction.WideLiteralInstruction
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
+import com.android.tools.smali.dexlib2.iface.reference.StringReference
 
 private const val HOOK_CLASS = "$PATCHES_DESCRIPTOR/watchHistory/WatchHistoryHook;"
 
@@ -125,6 +128,64 @@ private object ClipsItemStateToStringFingerprint : Fingerprint(
     strings = listOf("ClipsItemState(lastUserPausedPositionMs="),
 )
 
+/**
+ * Instagram's own impression tracker, the only subsystem found on 439 that distinguishes a
+ * media the user looked at from one the feed merely prepared: it reports a media to its logger
+ * only after the view outlived a dwell threshold, which prefetch can never satisfy.
+ */
+private const val IMPRESSION_TRACKER_STRING = "Viewable info missing for media with key %s"
+
+private object ImpressionTrackerFingerprint : Fingerprint(
+    strings = listOf(IMPRESSION_TRACKER_STRING),
+)
+
+/** Milliseconds a media must stay on screen before the tracker reports time spent on it. */
+private const val DWELL_THRESHOLD_MS = 500L
+
+/**
+ * Declaration of the per-view impression listener, whose callbacks fire as a media enters,
+ * becomes partly visible and leaves the screen. Matched on the percent-visible callback, the
+ * only one carrying a `View` and a `double` next to a media.
+ */
+/**
+ * Shapes of Instagram's clips watch-state callbacks, carrying the item whose single `Media` field
+ * is the reel being played. Matched by shape because the method names are obfuscated, and swept
+ * across every implementation because the interface has dozens and the live one is not knowable
+ * statically.
+ *
+ * `(item, positionMs, ?, ?, ?)` is the progress callback and `(item, positionMs, loops)` the loop
+ * callback. Instagram's own implementation of the former treats 3 seconds of playback as a watch.
+ */
+private val CLIPS_PROGRESS_TAIL = listOf("I", "I", "I", "Z")
+private val CLIPS_LOOP_TAIL = listOf("I", "I")
+
+/**
+ * The declaring type of the item parameter, if this method has the given callback shape. Tested
+ * against every method in the app, so the parameter list is only materialised once the cheap
+ * arity and return type checks pass.
+ */
+private fun Method.clipsItemType(tail: List<String>): String? {
+    if (parameterTypes.size != tail.size + 1) return null
+    if (returnType != "V") return null
+    val params = paramTypes()
+    if (!params[0].startsWith("L")) return null
+    if (tail.indices.any { params[it + 1] != tail[it] }) return null
+    return params[0]
+}
+
+private object ImpressionListenerFingerprint : Fingerprint(
+    returnType = "V",
+    custom = { method, _ ->
+        val params = method.parameterTypes.map { it.toString() }
+        params.size == 3 &&
+            params[0] == "Landroid/view/View;" &&
+            params[1] == MEDIA_CLASS_NAME &&
+            params[2] == "D" &&
+            // The interface declaration, not one of the implementations.
+            method.implementation == null
+    },
+)
+
 /** Placeholder in the extension, rewritten with the list of anchors that injected. */
 private object InjectionReportExtensionFingerprint : Fingerprint(
     definingClass = HOOK_CLASS,
@@ -138,22 +199,25 @@ private object ProbeReportExtensionFingerprint : Fingerprint(
 )
 
 /** Must match WatchHistoryHook.PROBE_COUNT. */
-private const val PROBE_COUNT = 12
+private const val PROBE_COUNT = 24
 
-private fun Method.mediaParamIndex(): Int = paramTypes().indexOfFirst { it == MEDIA_CLASS_NAME }
+private fun Method.itemParamIndex(types: Set<String>): Int = paramTypes().indexOfFirst { it in types }
+
+private fun Method.mediaParamIndex(): Int = itemParamIndex(setOf(MEDIA_CLASS_NAME))
 
 private fun CharSequence.registerWidth(): Int = if (this == "J" || this == "D") 2 else 1
 
-/** Smali `p` register of the media parameter, accounting for the receiver and wide params. */
-private fun Method.mediaParamRegister(): Int? {
-    val paramIndex = mediaParamIndex()
-    if (paramIndex < 0) return null
+/** Smali `p` register of a parameter, accounting for the receiver and wide params. */
+private fun Method.paramRegister(index: Int): Int {
     var register = if (AccessFlags.STATIC.isSet(accessFlags)) 0 else 1
-    for (i in 0 until paramIndex) {
+    for (i in 0 until index) {
         register += paramTypes()[i].registerWidth()
     }
     return register
 }
+
+private fun Method.itemParamRegister(types: Set<String>): Int? =
+    itemParamIndex(types).takeIf { it >= 0 }?.let { paramRegister(it) }
 
 @Suppress("unused")
 val watchHistoryPatch =
@@ -178,10 +242,27 @@ val watchHistoryPatch =
             val report = mutableListOf<String>()
             var injected = 0
 
-            fun MutableMethod.injectHook(hookName: String): Boolean {
+            /**
+             * The impression callbacks take the interface `Media` implements rather than `Media`
+             * itself, so the accepted parameter types are the transitive interfaces of `Media`.
+             */
+            val mediaItemTypes =
+                buildSet {
+                    add(MEDIA_CLASS_NAME)
+                    val pending = ArrayDeque(listOf(MEDIA_CLASS_NAME))
+                    while (pending.isNotEmpty()) {
+                        val classDef = classDefByOrNull(pending.removeFirst()) ?: continue
+                        classDef.interfaces.forEach { if (add(it)) pending += it }
+                    }
+                }
+
+            fun MutableMethod.injectHook(
+                hookName: String,
+                types: Set<String> = setOf(MEDIA_CLASS_NAME),
+            ): Boolean {
                 if (name == "<clinit>") return false
                 if (implementation == null) return false
-                val register = mediaParamRegister() ?: return false
+                val register = itemParamRegister(types) ?: return false
                 val index =
                     if (name == "<init>") {
                         // Never before the super() call.
@@ -278,39 +359,250 @@ val watchHistoryPatch =
                 sweepClass(ReelViewerBinderFingerprint.classDef.type, "onReelBind")
             }
 
+            /**
+             * Both dwell-gated entry points of the impression tracker take (item, int) and differ
+             * only in body: one compares the elapsed time against the dwell threshold, the other
+             * carries the tracker's own warning string.
+             */
+            val trackerMethods =
+                runCatching {
+                    val trackerType = ImpressionTrackerFingerprint.classDef.type
+                    mutableClassDefBy { it.type == trackerType }.methods.filter {
+                        it.implementation != null && it.itemParamIndex(mediaItemTypes) >= 0
+                    }
+                }.getOrDefault(emptyList())
+
+            val dwellShaped =
+                trackerMethods.filter {
+                    val params = it.paramTypes()
+                    params.size == 2 && params[1] == "I" && params[0] != MEDIA_CLASS_NAME
+                }
+
+            anchor("imprDwell") {
+                val method =
+                    dwellShaped.firstOrNull { method ->
+                        method.instructions.any {
+                            (it as? WideLiteralInstruction)?.wideLiteral == DWELL_THRESHOLD_MS
+                        }
+                    } ?: return@anchor 0
+                if (method.injectHook("onImpressionDwell", mediaItemTypes)) 1 else 0
+            }
+
+            anchor("imprEnd") {
+                val method =
+                    dwellShaped.firstOrNull { method ->
+                        method.instructions.any {
+                            it.getReference<StringReference>()?.string == IMPRESSION_TRACKER_STRING
+                        }
+                    } ?: return@anchor 0
+                if (method.injectHook("onImpressionEnd", mediaItemTypes)) 1 else 0
+            }
+
+            /**
+             * Probe groups whose live implementation is not knowable statically. A fingerprint
+             * resolves to exactly one method, which is how the previous revision instrumented one
+             * of two autoplay recorders and concluded the subsystem was dead, so each group is
+             * swept across every implementation instead.
+             */
+            val probeGroups = mutableListOf<Pair<String, (Method) -> Boolean>>()
+
+            // Keyed by method name, matched by the declaration on the listener interface.
+            runCatching {
+                ImpressionListenerFingerprint.classDef.methods
+                    .filter { it.itemParamIndex(mediaItemTypes) >= 0 }
+                    .sortedBy { it.name }
+                    .forEach { declared ->
+                        val params = declared.paramTypes()
+                        probeGroups +=
+                            "lst.${declared.name}" to { method: Method -> method.paramTypes() == params }
+                    }
+            }
+            val namedGroups = probeGroups.indices.groupBy { probeGroups[it].first.substringAfter('.') }
+
+            // Keyed by signature alone, because the name carries no meaning here.
+            val autoplayGroup = probeGroups.size
+            probeGroups +=
+                "autoplayAll" to
+                    { method: Method ->
+                        // Checked against every method in the app, so the cheap test comes first
+                        // and the parameter list is never materialised.
+                        method.parameterTypes.size == 2 &&
+                            method.parameterTypes[0].toString() == AUTOPLAY_PLAYBACK_STATE &&
+                            method.parameterTypes[1].toString() == MEDIA_CLASS_NAME
+                    }
+
+            // One pass over the dex rather than one scan per group. Whether a match is abstract is
+            // left to the injection step, since reading every implementation here would mean
+            // parsing the code of every method in the app.
+            val groupHits = List(probeGroups.size) { mutableListOf<Pair<ClassDef, Method>>() }
+            val mediaFieldTypes = mutableSetOf<String>()
+            val clipsProgress = mutableMapOf<String, MutableList<Pair<ClassDef, Method>>>()
+            val clipsLoop = mutableMapOf<String, MutableList<Pair<ClassDef, Method>>>()
+            classDefForEach { classDef ->
+                if (classDef.fields.any { it.type == MEDIA_CLASS_NAME }) {
+                    mediaFieldTypes += classDef.type
+                }
+                classDef.methods.forEach { method ->
+                    namedGroups[method.name]?.forEach { group ->
+                        if (probeGroups[group].second(method)) groupHits[group] += classDef to method
+                    }
+                    if (probeGroups[autoplayGroup].second(method)) {
+                        groupHits[autoplayGroup] += classDef to method
+                    }
+                    method.clipsItemType(CLIPS_PROGRESS_TAIL)?.let {
+                        clipsProgress.getOrPut(it) { mutableListOf() } += classDef to method
+                    }
+                    method.clipsItemType(CLIPS_LOOP_TAIL)?.let {
+                        clipsLoop.getOrPut(it) { mutableListOf() } += classDef to method
+                    }
+                }
+            }
+
+            /**
+             * The clips item is the only type carrying a media that appears as the subject of the
+             * progress callback, and the implementation that wins a tie is the one with the most
+             * implementations, since the interface is implemented across the whole viewer.
+             */
+            val clipsItemType =
+                clipsProgress.keys
+                    .filter { it in mediaFieldTypes }
+                    .maxByOrNull { clipsProgress.getValue(it).size }
+
+            /**
+             * Both callbacks pass consecutive parameters, so a range invoke covers them without
+             * needing a free register in methods this patch does not control.
+             */
+            fun sweepClipsCallback(
+                hits: List<Pair<ClassDef, Method>>,
+                hook: String,
+                argCount: Int,
+            ): Int {
+                var count = 0
+                for ((classDef, method) in hits) {
+                    runCatching {
+                        val mutable =
+                            mutableClassDefBy(classDef).methods.first {
+                                it.name == method.name && it.paramTypes() == method.paramTypes()
+                            }
+                        if (mutable.implementation == null) return@runCatching
+                        val first = mutable.paramRegister(0)
+                        val last = mutable.paramRegister(argCount - 1)
+                        val signature = "Ljava/lang/Object;" + "I".repeat(argCount - 1)
+                        mutable.addInstructions(
+                            0,
+                            "invoke-static/range {p$first .. p$last}, " +
+                                "$HOOK_CLASS->$hook($signature)V",
+                        )
+                        count++
+                    }
+                }
+                return count
+            }
+
+            // Reel actually played: Instagram's own watch-state listener, which its own
+            // implementation reads as a watch at three seconds of playback.
+            anchor("clipsProgress") {
+                val type = clipsItemType ?: return@anchor 0
+                sweepClipsCallback(clipsProgress.getValue(type), "onClipsProgress", 2)
+            }
+
+            anchor("clipsLoop") {
+                val type = clipsItemType ?: return@anchor 0
+                sweepClipsCallback(clipsLoop[type].orEmpty(), "onClipsLoop", 3)
+            }
+
+            /**
+             * Feed posts get no help from the impression tracker, which is behind a server flag
+             * and was not running on the test device. The listener's own impression start and
+             * visibility updates bracket the time a post spends on screen, which is enough to
+             * measure the dwell in the extension. Both are identified by shape: the four-argument
+             * form is unique to the impression start, and only the visibility update carries a
+             * `View` and a `double`.
+             */
+            val listenerMethods =
+                runCatching { ImpressionListenerFingerprint.classDef.methods.toList() }
+                    .getOrDefault(emptyList())
+
+            fun listenerName(params: List<String>): String? =
+                listenerMethods.firstOrNull { it.paramTypes() == params }?.name
+
+            /** Every implementation of one listener callback, found by the pass above. */
+            fun sweepListener(name: String?, hook: String, paramIndex: Int): Int {
+                if (name == null) return 0
+                var count = 0
+                for (group in namedGroups[name].orEmpty()) {
+                    for ((classDef, method) in groupHits[group]) {
+                        runCatching {
+                            val mutable =
+                                mutableClassDefBy(classDef).methods.first {
+                                    it.name == name && it.paramTypes() == method.paramTypes()
+                                }
+                            if (mutable.implementation == null) return@runCatching
+                            val register = mutable.paramRegister(paramIndex)
+                            mutable.addInstructions(
+                                0,
+                                "invoke-static/range {p$register .. p$register}, " +
+                                    "$HOOK_CLASS->$hook(Ljava/lang/Object;)V",
+                            )
+                            count++
+                        }
+                    }
+                }
+                return count
+            }
+
+            anchor("feedEnter") {
+                val name = listenerName(listOf(MEDIA_CLASS_NAME, "I", "I", "I"))
+                sweepListener(name, "onFeedEnter", 0)
+            }
+
+            anchor("feedVisible") {
+                val name = listenerName(listOf("Landroid/view/View;", MEDIA_CLASS_NAME, "D"))
+                sweepListener(name, "onFeedVisible", 1)
+            }
+
             if (injected == 0) {
                 throw PatchException("Watch history: no capture hooks injected (${report.joinToString()})")
             }
 
-            // Every anchor above that was supposed to mean "this played" reported zero calls on
-            // 439, leaving only prefetch-time binders. So each method in the autoplay classes
-            // that receives a Media gets a counted probe, and the on-device log names the ones
-            // that fire. Probes are diagnostics: they never write history, and they are excluded
-            // from `injected` so they cannot mask a failed anchor.
+            // The anchors that were supposed to mean "this played" reported zero calls on 439,
+            // leaving only prefetch-time binders, so the remaining candidates are instrumented
+            // instead of guessed at. Probes are diagnostics: they never write history, and they
+            // are excluded from `injected` so they cannot mask a failed anchor.
             val probeTargets = mutableListOf<String>()
-            val probeClasses =
-                linkedSetOf(
-                    AUTOPLAY_PLAYBACK_STATE,
-                    AUTOPLAY_PLAYBACK_HISTORY,
-                    AUTOPLAY_SCREEN_ITEM,
-                ).also { classes ->
-                    runCatching { classes += AutoplayPlaybackStateFingerprint.method.definingClass }
-                }
 
-            for (classType in probeClasses) {
+            fun probeMethod(method: MutableMethod, label: String, index: Int): Boolean =
+                runCatching { method.injectHook("onProbe$index", mediaItemTypes) }
+                    .getOrDefault(false)
+                    .also { if (it) probeTargets += "probe$index=$label" }
+
+            // Every item-carrying entry point of the tracker, so the log distinguishes impression
+            // start from impression end, dwell from percent-visible, and whole media from
+            // carousel child.
+            for (method in trackerMethods) {
                 if (probeTargets.size >= PROBE_COUNT) break
-                val classDef = runCatching { mutableClassDefBy { it.type == classType } }.getOrNull() ?: continue
-                for (method in classDef.methods) {
-                    if (probeTargets.size >= PROBE_COUNT) break
-                    if (method.name == "<clinit>") continue
-                    if (method.implementation == null) continue
-                    if (method.mediaParamIndex() < 0) continue
-                    val index = probeTargets.size
-                    val simpleClass = classType.substringAfterLast('/').removeSuffix(";")
-                    if (runCatching { method.injectHook("onProbe$index") }.getOrDefault(false)) {
-                        probeTargets += "probe$index=$simpleClass.${method.name}"
+                probeMethod(method, "trk.${method.name}", probeTargets.size)
+            }
+
+            probeGroups.forEachIndexed { group, (label, _) ->
+                val hits = groupHits[group]
+                if (hits.isEmpty() || probeTargets.size >= PROBE_COUNT) return@forEachIndexed
+                val index = probeTargets.size
+                var count = 0
+                for ((classDef, method) in hits) {
+                    val mutable =
+                        runCatching {
+                            mutableClassDefBy(classDef).methods.first {
+                                it.name == method.name && it.paramTypes() == method.paramTypes()
+                            }
+                        }.getOrNull() ?: continue
+                    if (runCatching { mutable.injectHook("onProbe$index", mediaItemTypes) }
+                            .getOrDefault(false)
+                    ) {
+                        count++
                     }
                 }
+                if (count > 0) probeTargets += "probe$index=$label x$count"
             }
             report += "probes=${probeTargets.size}"
 

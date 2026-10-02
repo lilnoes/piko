@@ -1,6 +1,6 @@
 ---
 name: morphe-patches
-description: Develop, build, and release Morphe/Piko patch bundles (.mpp). Use when adding Instagram or Twitter patches, building patches, fixing Morphe Manager showing 0 patches, configuring GitHub Packages, working on the `dev` branch, or following the Morphe patches template.
+description: Develop, build, and release Morphe/Piko patch bundles (.mpp). Use when adding Instagram or Twitter patches, building patches, patching an APK locally with the Morphe desktop CLI, installing a patched build over a Manager-installed app, fixing Morphe Manager showing 0 patches, configuring GitHub Packages, working on the `dev` branch, or following the Morphe patches template.
 ---
 
 # Morphe / Piko patches
@@ -213,9 +213,61 @@ Build a JSON index of every method whose signature contains the type you care ab
 
 Use `dexdump` to enumerate and `jadx` to understand. Signature search tells you a hook exists; only decompiled Java tells you whether it means "user watched this" or "analytics callback that is routinely invoked with null".
 
+## Patching locally with the Morphe desktop CLI
+
+The [desktop CLI](https://github.com/MorpheApp/morphe-desktop) (`morphe.jar`, GUI and CLI in one jar) applies a local `.mpp` in well under a minute. Use it instead of a Manager install cycle: the run prints the patch's own injection accounting, which is the fact you actually want to check after editing a fingerprint.
+
+It needs a **JRE 21+** — the jar is class-file version 65, so the JDK used for `buildAndroid` (17 in this repo) fails with `UnsupportedClassVersionError`. Detect a second JDK; do not hardcode either path.
+
+```sh
+MPP="$(ls -t patches/build/libs/patches-*.mpp | head -1)"      # semantic-release rolls the
+                                                               # version, so the name changes
+MORPHE_DATA_DIR=/tmp/igpatch/morphe-data "$JAVA21" -jar morphe.jar patch \
+  --patches "$MPP" --exclusive -e "Watch history" \
+  -f -t /tmp/igpatch/tmp --striplibs arm64-v8a \
+  --keystore /tmp/igpatch/Morphe.keystore \
+  -o /tmp/igpatch/out.apk -r /tmp/igpatch/result.json \
+  /tmp/igpatch/app.apkm
+```
+
+`--exclusive -e "<public patch name>"` applies one patch plus its dependencies. `-r` writes applied/failed patches and the resolved package name as JSON. `-f` skips the version check.
+
+**The run's stdout is the verification.** Anchor counts printed by the patch confirm each anchor resolved on the real APK, and a sweep that hooked every implementation rather than one arbitrary match:
+
+```
+Watch history: 93 hooks: ... clipsProgress=35, clipsLoop=36, feedEnter=5, feedVisible=5
+```
+
+Default `--bytecode-mode STRIP_FAST` aggressively strips unused bytecode. If an extension reflects into app classes, drop to `STRIP_SAFE` or `FULL` before blaming the patch.
+
+| Pitfall | Detail |
+|---------|--------|
+| Split-bundle merge fails on a read-only input directory | `.apkm`/`.xapk` extraction goes **next to the input file**, ignoring `-t`. Copy the bundle somewhere writable first |
+| Data root is not writable | Morphe defaults to `morphe-data/` next to the jar, then `~/morphe/`. `MORPHE_DATA_DIR` overrides both |
+| Scratch vanishes between sessions | `/tmp` is cleaned. Do not leave a keystore or an unpacked dex index there |
+
+### Installing over a Manager-installed build
+
+Android only accepts an update signed with the **same** key. A fresh CLI run generates its own keystore, so installing over an app that Morphe Manager installed fails, and uninstalling first wipes the app's databases (watch history included).
+
+Export the keystore from Manager (it lands in the device's `Download/`), pull it, and sign with it:
+
+```sh
+adb pull /sdcard/Download/Morphe.keystore /tmp/igpatch/Morphe.keystore   # then --keystore
+```
+
+Confirm the key matches *before* installing — compare the APK's signer against what the device holds:
+
+```sh
+"$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs out.apk | grep 'SHA-256 digest'
+adb shell dumpsys package com.instagram.android | grep -i 'Signatures:'
+```
+
+Equal digests mean `adb install -r` (or `-i`) updates in place. Defaults are alias `Morphe`, key password `Morphe`, empty store password, shared by the CLI and Manager.
+
 ## Debugging on device
 
-There is no `adb` on a user's unrooted phone, so `Logger.printDebug` is invisible. Anything you need to see must reach the UI.
+With a device attached over USB, `adb logcat` shows `Logger.printDebug`. Whoever reports the bug usually has no such setup, so anything you need from *their* run must reach the UI.
 
 **Carry patch-time facts into the app.** Put a sentinel in the extension and rewrite it during `execute`:
 

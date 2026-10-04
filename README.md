@@ -1,6 +1,8 @@
 > **This is a fork** of [crimera/piko](https://github.com/crimera/piko). It stays as-is for now because a pull request has not been opened against upstream yet.
 >
-> **Watch history** (Instagram **439.0.0.37.89**): records posts and Reels as you view them (not prefetch), stores them locally, and adds a searchable history button on the home feed. Grid of cover thumbnails; All / Posts / Reels tabs; search by username, caption, hashtag, or title; tap to open the original; clear history; on/off in Piko settings.
+> **Watch history** (Instagram **439.0.0.37.89**): a reel or feed post counts after about three seconds on screen. Searchable history button on the home feed. Stories are not recorded.
+>
+> **Daily scroll limit**: minutes per day, under Distraction Free. When they run out, Reels scrolling stays off until midnight.
 >
 > Updates are published **only when this patch breaks**, not on every upstream Piko or Instagram release.
 
